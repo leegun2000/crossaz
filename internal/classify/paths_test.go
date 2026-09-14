@@ -195,41 +195,42 @@ func TestBuildPathsTopologyHints(t *testing.T) {
 		endpoints     []model.Endpoint
 		wantHints     bool
 		wantZoneLocal bool
+		wantProxy     bool // Facts.KubeProxyHints: kube-proxy is on the path and known to honor hints
 	}{
-		{"kube-proxy 1.31 honors hints without annotation", "v1.31.2-eksbuild.3", nil, nil, hinted, true, true},
-		{"kube-proxy 1.29 without annotation ignores hints", "v1.29.0-eksbuild.1", nil, nil, hinted, false, false},
-		{"kube-proxy 1.29 with topology-mode Auto", "v1.29.0-eksbuild.1", map[string]string{annTopologyMode: "Auto"}, nil, hinted, true, true},
-		{"kube-proxy 1.29 with deprecated hints annotation", "v1.29.0", map[string]string{annTopologyAwareHints: "auto"}, nil, hinted, true, true},
-		{"kube-proxy 1.29 with topology-mode Disabled", "v1.29.0", map[string]string{annTopologyMode: "Disabled"}, nil, hinted, false, false},
-		{"kube-proxy 1.23 is too old even with annotation", "v1.23.9", map[string]string{annTopologyMode: "Auto"}, nil, hinted, false, false},
-		{"unknown kube-proxy version (replaced)", "", nil, nil, hinted, false, false},
-		{"one endpoint without hints", "v1.31.0", nil, nil, []model.Endpoint{readyEP("10.0.0.1", "a", "a"), readyEP("10.0.0.2", "b")}, false, false},
-		{"hints that miss a caller zone", "v1.31.0", nil, nil, []model.Endpoint{readyEP("10.0.0.1", "a", "a")}, true, false},
-		{"endpoint hinted for another zone is not zone-local", "v1.31.0", nil, nil, []model.Endpoint{readyEP("10.0.0.1", "a", "a", "b")}, true, false},
+		{"kube-proxy 1.31 honors hints without annotation", "v1.31.2-eksbuild.3", nil, nil, hinted, true, true, true},
+		{"kube-proxy 1.29 without annotation ignores hints", "v1.29.0-eksbuild.1", nil, nil, hinted, false, false, false},
+		{"kube-proxy 1.29 with topology-mode Auto", "v1.29.0-eksbuild.1", map[string]string{annTopologyMode: "Auto"}, nil, hinted, true, true, true},
+		{"kube-proxy 1.29 with deprecated hints annotation", "v1.29.0", map[string]string{annTopologyAwareHints: "auto"}, nil, hinted, true, true, true},
+		{"kube-proxy 1.29 with topology-mode Disabled", "v1.29.0", map[string]string{annTopologyMode: "Disabled"}, nil, hinted, false, false, false},
+		{"kube-proxy 1.23 is too old even with annotation", "v1.23.9", map[string]string{annTopologyMode: "Auto"}, nil, hinted, false, false, false},
+		{"unknown kube-proxy version (replaced)", "", nil, nil, hinted, false, false, false},
+		{"one endpoint without hints", "v1.31.0", nil, nil, []model.Endpoint{readyEP("10.0.0.1", "a", "a"), readyEP("10.0.0.2", "b")}, false, false, true},
+		{"hints that miss a caller zone", "v1.31.0", nil, nil, []model.Endpoint{readyEP("10.0.0.1", "a", "a")}, true, false, true},
+		{"endpoint hinted for another zone is not zone-local", "v1.31.0", nil, nil, []model.Endpoint{readyEP("10.0.0.1", "a", "a", "b")}, true, false, true},
 		{"headless bypasses kube-proxy", "v1.31.0", nil, func(s model.Service) model.Service {
 			s.ClusterIP = "None"
 			return s
-		}, hinted, false, false},
+		}, hinted, false, false, false},
 		{"internalTrafficPolicy Local is zone-local without hints", "", nil, func(s model.Service) model.Service {
 			s.InternalTrafficPolicy = "Local"
 			return s
-		}, []model.Endpoint{readyEP("10.0.0.1", "a")}, false, true},
+		}, []model.Endpoint{readyEP("10.0.0.1", "a")}, false, true, false},
 		{"internalTrafficPolicy Local on headless is not zone-local", "", nil, func(s model.Service) model.Service {
 			s.ClusterIP, s.InternalTrafficPolicy = "None", "Local"
 			return s
-		}, []model.Endpoint{readyEP("10.0.0.1", "a")}, false, false},
+		}, []model.Endpoint{readyEP("10.0.0.1", "a")}, false, false, false},
 		{"CLB instance targets with Cluster policy pass through kube-proxy", "v1.31.0", nil, func(s model.Service) model.Service {
 			s.Type = "LoadBalancer"
 			return s
-		}, hinted, true, true},
+		}, hinted, true, true, true},
 		{"LB with Local policy skips the kube-proxy hop", "v1.31.0", nil, func(s model.Service) model.Service {
 			s.Type, s.ExternalTrafficPolicy = "LoadBalancer", "Local"
 			return s
-		}, hinted, false, false},
+		}, hinted, false, false, false},
 		{"NLB ip targets bypass kube-proxy", "v1.31.0", map[string]string{annLBType: "nlb-ip"}, func(s model.Service) model.Service {
 			s.Type = "LoadBalancer"
 			return s
-		}, hinted, false, false},
+		}, hinted, false, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -245,8 +246,9 @@ func TestBuildPathsTopologyHints(t *testing.T) {
 			p := onlyPath(t, s)
 
 			// Assert
-			if p.Facts.TopologyHints != tt.wantHints || p.Facts.ZoneLocal != tt.wantZoneLocal {
-				t.Errorf("hints/zoneLocal = %v/%v, want %v/%v", p.Facts.TopologyHints, p.Facts.ZoneLocal, tt.wantHints, tt.wantZoneLocal)
+			if p.Facts.TopologyHints != tt.wantHints || p.Facts.ZoneLocal != tt.wantZoneLocal || p.Facts.KubeProxyHints != tt.wantProxy {
+				t.Errorf("hints/zoneLocal/kubeProxyHints = %v/%v/%v, want %v/%v/%v",
+					p.Facts.TopologyHints, p.Facts.ZoneLocal, p.Facts.KubeProxyHints, tt.wantHints, tt.wantZoneLocal, tt.wantProxy)
 			}
 		})
 	}

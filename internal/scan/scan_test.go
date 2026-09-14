@@ -46,6 +46,8 @@ func TestGoldenOutputs(t *testing.T) {
 		{"dev-b", "dev-b.txt", func(b *bytes.Buffer, r model.ScanResult) error { return report.Table(b, r) }},
 		{"dev-b", "dev-b.json", func(b *bytes.Buffer, r model.ScanResult) error { return report.JSON(b, r) }},
 		{"l0-only", "l0-only.txt", func(b *bytes.Buffer, r model.ScanResult) error { return report.Table(b, r) }},
+		// kube-proxy add-on left at 1.30: PreferClose hints unused (hints-unverified), topology-mode Auto honored but withheld (hints-withheld).
+		{"stale-proxy", "stale-proxy.json", func(b *bytes.Buffer, r model.ScanResult) error { return report.JSON(b, r) }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.golden, func(t *testing.T) {
@@ -111,7 +113,7 @@ func TestGoldenOutputsCoverEveryRule(t *testing.T) {
 }
 
 func TestAnonymizePreservesVerdictsOfEveryFixture(t *testing.T) {
-	for _, name := range []string{"prod-a", "dev-b", "l0-only"} {
+	for _, name := range []string{"prod-a", "dev-b", "l0-only", "stale-proxy"} {
 		t.Run(name, func(t *testing.T) {
 			// Arrange
 			s := loadFixture(t, name)

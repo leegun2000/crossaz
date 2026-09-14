@@ -6,6 +6,7 @@ SERVICE                ROUTE        RECV/mo   AZ SPREAD   EST $/mo   CONF   FIX
 cache/redis            clusterip    ?         1/3         ?          high   topologySpread
 events/kafka           headless     ?         3/3 even    ?          high   relocate
 kube-system/kube-dns   clusterip    ?         2/3 even    ?          high   topologySpread
+notify/worker          clusterip    ?         3/3 even    ?          high   PreferClose
 payments/api           clusterip    ?         3/3 even    ?          high   PreferClose
 shop/storefront        alb (inst)   ?         3/3 even    ?          med    PreferClose
 
@@ -20,7 +21,6 @@ SERVICE            ROUTE            RECV/mo   AZ SPREAD   EST $/mo   CONF   NOTE
 admin/console      clusterip        —         3/3 even    —          low    ingress-direct-backend
 edge/gateway       nlb (ip)         ?         3/3 even    ?          low    nlb-cross-zone-unknown
 edge/relay         nlb-zonal (ip)   —         3/3 even    —          low    unclassified
-notify/worker      clusterip        ?         3/3 even    ?          low    hints-unverified
 partners/webhook   alb (ip)         ?         3/3 even    ?          low    lb-exemption-unverified
 
 Estimated total: ? (L2 없음 — --prometheus-url)

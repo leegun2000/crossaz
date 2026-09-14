@@ -216,6 +216,8 @@ func TestMatches(t *testing.T) {
 		{"coverage checked", model.Match{ZoneCoverage: model.StringSet{"full"}}, model.Facts{ZoneCoverage: "full"}, true},
 		{"evidence checked", model.Match{Evidence: model.StringSet{"aws"}}, model.Facts{Evidence: "k8s"}, false},
 		{"hints checked", model.Match{TopologyHints: &yes}, model.Facts{}, false},
+		{"kube_proxy_hints checked", model.Match{KubeProxyHints: &no}, model.Facts{KubeProxyHints: true}, false},
+		{"kube_proxy_hints matches", model.Match{KubeProxyHints: &yes}, model.Facts{KubeProxyHints: true}, true},
 		{"zone_local checked", model.Match{ZoneLocal: &yes}, model.Facts{ZoneLocal: true}, true},
 		{"hints_configured checked", model.Match{HintsConfigured: &yes}, model.Facts{}, false},
 		{"hints_configured matches", model.Match{HintsConfigured: &yes}, model.Facts{HintsConfigured: true}, true},
@@ -314,8 +316,10 @@ func defaultRuleCases() []ruleCase {
 		{"nlb zonal internet-facing", lb(model.RouteNLBZonal, "instance", "Local", "internet-facing"), "nlb-zonal-internet"},
 		{"boundary: nlb zonal without scheme", lb(model.RouteNLBZonal, "ip", "Cluster", ""), "unclassified"},
 		{"hints configured but not used", with(svc(model.RouteClusterIP), func(f *model.Facts) { f.HintsConfigured = true }), "hints-unverified"},
+		{"hints configured, kube-proxy honors hints, endpoints unhinted", with(svc(model.RouteClusterIP), func(f *model.Facts) { f.HintsConfigured, f.KubeProxyHints = true, true }), "hints-withheld"},
+		{"boundary: withheld hints with a caller zone lacking endpoints", with(svc(model.RouteClusterIP), func(f *model.Facts) { f.HintsConfigured, f.KubeProxyHints, f.ZoneCoverage = true, true, "partial" }), "clusterip-cross-az-partial"},
 		{"boundary: partial coverage is billable even when hints are configured but unverified", with(svc(model.RouteClusterIP), func(f *model.Facts) { f.HintsConfigured, f.ZoneCoverage = true, "partial" }), "clusterip-cross-az-partial"},
-		{"boundary: hints configured and used but missing a caller zone", with(svc(model.RouteClusterIP), func(f *model.Facts) { f.HintsConfigured, f.TopologyHints = true, true }), "clusterip-cross-az"},
+		{"boundary: hints configured and used but missing a caller zone", with(svc(model.RouteClusterIP), func(f *model.Facts) { f.HintsConfigured, f.KubeProxyHints, f.TopologyHints = true, true, true }), "clusterip-cross-az"},
 		{"boundary: headless with hints configured", with(svc(model.RouteHeadless), func(f *model.Facts) { f.HintsConfigured = true }), "headless-cross-az"},
 		{"boundary: clusterip partial coverage", with(svc(model.RouteClusterIP), func(f *model.Facts) { f.ZoneCoverage = "partial" }), "clusterip-cross-az-partial"},
 		{"clusterip unknown coverage", with(svc(model.RouteClusterIP), func(f *model.Facts) { f.ZoneCoverage = "unknown" }), "clusterip-cross-az-partial"},
@@ -369,6 +373,7 @@ func TestDefaultRuleVerdicts(t *testing.T) {
 		{"nodeport-hop-cross-az", true, model.Medium},
 		{"ingress-direct-backend", false, model.Low},
 		{"hints-unverified", true, model.Low},
+		{"hints-withheld", true, model.High},
 		{"lb-exemption-unverified", true, model.Low},
 	}
 	rules := Default().Rules

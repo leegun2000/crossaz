@@ -39,7 +39,10 @@ func promTestServer(t *testing.T, status int, body string) (*httptest.Server, *a
 func TestPodRecvBytesPerSecondParsesVectorAndSendsExactQuery(t *testing.T) {
 	// Arrange
 	srv, calls, lastURL := promTestServer(t, http.StatusOK, promTestSuccessBody)
-	wantQuery := `sum by (namespace, pod) (max by (namespace, pod, interface) (rate(container_network_receive_bytes_total{pod!=""}[7d])))`
+	// A 5m rate per 5m step, kept only where the series already existed 5m earlier, averaged over the steps that
+	// exist: a pod younger than the window (or Prometheus retention shorter than it) is not divided by the window.
+	wantQuery := `sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) ` +
+		`(rate(container_network_receive_bytes_total{pod!=""}[5m]) and container_network_receive_bytes_total{pod!=""} offset 5m))[7d:5m]))`
 
 	// Act
 	got, err := NewPrometheus(srv.URL+"/prom/", srv.Client()).PodRecvBytesPerSecond(t.Context(), "7d")
@@ -105,7 +108,7 @@ func TestPodRecvBytesPerSecondErrors(t *testing.T) {
 }
 
 func TestPodRecvBytesPerSecondRejectsBadWindowWithoutRequest(t *testing.T) {
-	for _, window := range []string{"", "7", "7days", "1h30m", "5m])) or vector(1", "-1d"} {
+	for _, window := range []string{"", "7", "7days", "1h30m", "5m])) or vector(1", "-1d", "99999999999999999999y"} {
 		t.Run(window, func(t *testing.T) {
 			// Arrange
 			srv, calls, _ := promTestServer(t, http.StatusOK, promTestSuccessBody)
@@ -119,6 +122,44 @@ func TestPodRecvBytesPerSecondRejectsBadWindowWithoutRequest(t *testing.T) {
 			}
 			if calls.Load() != 0 {
 				t.Errorf("requests = %d, want 0", calls.Load())
+			}
+		})
+	}
+}
+
+func TestPodRecvBytesPerSecondWindowAgainstRateStep(t *testing.T) {
+	tests := []struct {
+		window  string
+		wantErr bool
+	}{
+		{"1m", true},
+		{"299s", true},
+		{"299999ms", true},
+		{"0y", true},
+		{"5m", false},
+		{"300s", false},
+		{"1h", false},
+		{"7d", false},
+		{"2w", false},
+		{"1y", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.window, func(t *testing.T) {
+			// Arrange
+			srv, calls, _ := promTestServer(t, http.StatusOK, promTestSuccessBody)
+
+			// Act
+			_, err := NewPrometheus(srv.URL, srv.Client()).PodRecvBytesPerSecond(t.Context(), tt.window)
+
+			// Assert
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "shorter than the 5m rate step") || calls.Load() != 0 {
+					t.Errorf("error = %v after %d requests, want a step error and no request", err, calls.Load())
+				}
+				return
+			}
+			if err != nil || calls.Load() != 1 {
+				t.Errorf("error = %v after %d requests, want the query sent", err, calls.Load())
 			}
 		})
 	}

@@ -20,6 +20,8 @@ const (
 	warningSep   = ": "
 	redactedMark = "<redacted>"
 
+	ownerKindNode = "Node" // a mirror (static) pod's controller
+
 	annLBAttributes = "service.beta.kubernetes.io/aws-load-balancer-attributes"
 	annTGAttributes = "service.beta.kubernetes.io/aws-load-balancer-target-group-attributes"
 	attrCrossZone   = "load_balancing.cross_zone.enabled"
@@ -51,12 +53,13 @@ var (
 // (and target group) names and DNS names replaced by sha256-derived values. Within one snapshot the same
 // input always maps to the same output, so joins survive: endpoint IP = pod IP = IPZones key,
 // LB DNS name = Service/Ingress hostname, node name = pod/endpoint NodeName. Namespace, service and pod
-// names are kept; annotations classify does not read are dropped; warnings are scrubbed of replaced values and
-// cut to their "<layer>: <what>" prefix.
+// names are kept, except the node name inside a mirror pod's name; annotations classify does not read are dropped;
+// warnings are scrubbed of replaced values and cut to their "<layer>: <what>" prefix.
 func Anonymize(s model.Snapshot) model.Snapshot {
 	a := &anonymizer{byKey: map[string]string{}, taken: map[string]bool{}}
 	out := s
 	out.Nodes = mapSlice(s.Nodes, a.node)
+	a.mirrorPods = a.mirrorPodNames(s.Pods)
 	out.Services = mapSlice(s.Services, a.service)
 	out.Pods = mapSlice(s.Pods, a.pod)
 	out.Ingresses = mapSlice(s.Ingresses, a.ingress)
@@ -67,7 +70,13 @@ func Anonymize(s model.Snapshot) model.Snapshot {
 	}
 	if s.Volume != nil {
 		v := *s.Volume
-		v.RecvBytesPerS = maps.Clone(s.Volume.RecvBytesPerS)
+		v.RecvBytesPerS = mapSorted(s.Volume.RecvBytesPerS, func(key string, bps float64) (string, float64) {
+			namespace, pod, ok := strings.Cut(key, "/")
+			if !ok {
+				return key, bps
+			}
+			return namespace + "/" + a.podName(namespace, pod), bps
+		})
 		out.Volume = &v
 	}
 	if s.Cost != nil {
@@ -92,6 +101,8 @@ type anonymizer struct {
 	byKey map[string]string // kind + NUL + original -> replacement
 	taken map[string]bool   // replacements already handed out
 	pairs []string          // original, replacement, ... for scrubbing free text
+	// mirrorPods maps "namespace/pod" of mirror pods to their names with the node name replaced.
+	mirrorPods map[string]string
 }
 
 // value returns the replacement of original, derived from sha256(kind, original, salt). The salt only
@@ -165,6 +176,28 @@ func (a *anonymizer) node(n model.Node) model.Node {
 	return out
 }
 
+// mirrorPodNames renames mirror pods: the kubelet names a static pod's mirror "<pod>-<node name>" and makes
+// the Node its owner, so the name would carry the node name (an IP on EKS) past nodeName.
+func (a *anonymizer) mirrorPodNames(pods []model.Pod) map[string]string {
+	out := map[string]string{}
+	for _, p := range pods {
+		base, ok := strings.CutSuffix(p.Name, "-"+p.NodeName)
+		if p.OwnerKind != ownerKindNode || p.NodeName == "" || !ok {
+			continue
+		}
+		out[p.Namespace+"/"+p.Name] = base + "-" + a.nodeName(p.NodeName)
+	}
+	return out
+}
+
+// podName is the pod's name in the output: mirror pods are renamed, every other pod keeps its name.
+func (a *anonymizer) podName(namespace, name string) string {
+	if renamed, ok := a.mirrorPods[namespace+"/"+name]; ok {
+		return renamed
+	}
+	return name
+}
+
 func (a *anonymizer) service(svc model.Service) model.Service {
 	out := svc
 	if svc.ClusterIP != "None" {
@@ -172,13 +205,15 @@ func (a *anonymizer) service(svc model.Service) model.Service {
 	}
 	out.Annotations = keepAnnotations(svc.Annotations)
 	out.LBHostnames = mapSlice(svc.LBHostnames, a.dns)
-	out.Endpoints = mapSlice(svc.Endpoints, a.endpoint)
+	out.Endpoints = mapSlice(svc.Endpoints, func(ep model.Endpoint) model.Endpoint { return a.endpoint(svc.Namespace, ep) })
 	return out
 }
 
-func (a *anonymizer) endpoint(ep model.Endpoint) model.Endpoint {
+// endpoint takes the service namespace: EndpointSlice target pods live in it.
+func (a *anonymizer) endpoint(namespace string, ep model.Endpoint) model.Endpoint {
 	out := ep
 	out.IP = a.ip(ep.IP)
+	out.PodName = a.podName(namespace, ep.PodName)
 	out.NodeName = a.nodeName(ep.NodeName)
 	out.ForZones = slices.Clone(ep.ForZones)
 	return out
@@ -186,8 +221,12 @@ func (a *anonymizer) endpoint(ep model.Endpoint) model.Endpoint {
 
 func (a *anonymizer) pod(p model.Pod) model.Pod {
 	out := p
+	out.Name = a.podName(p.Namespace, p.Name)
 	out.IP = a.ip(p.IP)
 	out.NodeName = a.nodeName(p.NodeName)
+	if p.OwnerKind == ownerKindNode {
+		out.OwnerName = a.nodeName(p.OwnerName)
+	}
 	return out
 }
 

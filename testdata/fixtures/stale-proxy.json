@@ -1,0 +1,50 @@
+{
+  "cluster": "stale-d",
+  "region": "ap-northeast-2",
+  "serverVersion": "v1.33.4-eks-3b2c1f7",
+  "kubeProxyVersion": "v1.30.14-eksbuild.9",
+  "nodes": [
+    {"name": "node-a1", "zone": "ap-northeast-2a", "region": "ap-northeast-2"},
+    {"name": "node-b1", "zone": "ap-northeast-2b", "region": "ap-northeast-2"},
+    {"name": "node-c1", "zone": "ap-northeast-2c", "region": "ap-northeast-2"}
+  ],
+  "services": [
+    {
+      "namespace": "search",
+      "name": "api",
+      "type": "ClusterIP",
+      "clusterIP": "10.100.20.1",
+      "trafficDistribution": "PreferClose",
+      "endpoints": [
+        {"ip": "10.0.1.11", "podName": "api-1", "nodeName": "node-a1", "zone": "ap-northeast-2a", "ready": true, "forZones": ["ap-northeast-2a"]},
+        {"ip": "10.0.2.11", "podName": "api-2", "nodeName": "node-b1", "zone": "ap-northeast-2b", "ready": true, "forZones": ["ap-northeast-2b"]},
+        {"ip": "10.0.3.11", "podName": "api-3", "nodeName": "node-c1", "zone": "ap-northeast-2c", "ready": true, "forZones": ["ap-northeast-2c"]}
+      ]
+    },
+    {
+      "namespace": "notify",
+      "name": "worker",
+      "type": "ClusterIP",
+      "clusterIP": "10.100.20.2",
+      "annotations": {"service.kubernetes.io/topology-mode": "Auto"},
+      "endpoints": [
+        {"ip": "10.0.1.21", "podName": "worker-1", "nodeName": "node-a1", "zone": "ap-northeast-2a", "ready": true},
+        {"ip": "10.0.2.21", "podName": "worker-2", "nodeName": "node-b1", "zone": "ap-northeast-2b", "ready": true},
+        {"ip": "10.0.3.21", "podName": "worker-3", "nodeName": "node-c1", "zone": "ap-northeast-2c", "ready": true}
+      ]
+    }
+  ],
+  "pods": [
+    {"namespace": "search", "name": "api-1", "nodeName": "node-a1", "ip": "10.0.1.11", "ownerKind": "ReplicaSet", "ownerName": "api-5d8f"},
+    {"namespace": "search", "name": "api-2", "nodeName": "node-b1", "ip": "10.0.2.11", "ownerKind": "ReplicaSet", "ownerName": "api-5d8f"},
+    {"namespace": "search", "name": "api-3", "nodeName": "node-c1", "ip": "10.0.3.11", "ownerKind": "ReplicaSet", "ownerName": "api-5d8f"},
+    {"namespace": "notify", "name": "worker-1", "nodeName": "node-a1", "ip": "10.0.1.21", "ownerKind": "ReplicaSet", "ownerName": "worker-7c4b"},
+    {"namespace": "notify", "name": "worker-2", "nodeName": "node-b1", "ip": "10.0.2.21", "ownerKind": "ReplicaSet", "ownerName": "worker-7c4b"},
+    {"namespace": "notify", "name": "worker-3", "nodeName": "node-c1", "ip": "10.0.3.21", "ownerKind": "ReplicaSet", "ownerName": "worker-7c4b"}
+  ],
+  "ingresses": [],
+  "ingressClasses": [],
+  "warnings": [
+    "L1: AWS 자격증명을 찾지 못해 L0만 실행"
+  ]
+}

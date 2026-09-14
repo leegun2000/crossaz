@@ -114,7 +114,7 @@ crossaz version
 | `--threshold` | `1` | (scan) 월 추정액이 이 값(USD) 미만인 과금 경로는 숨기고 개수만 표시 |
 | `--json` | | (scan) `ScanResult` 전체를 JSON으로 출력 |
 | `--prometheus-url` | | L2 볼륨 추정 (예: `http://localhost:9090`). basic auth 자격증명의 특수문자는 퍼센트 인코딩(`https://user:p%40ss@host`). 파싱할 수 없으면 `prometheus: base URL is invalid (percent-encode credentials)`로 실패하고, 어떤 오류·경고에도 사용자 이름·비밀번호를 남기지 않음 |
-| `--prom-window` | `7d` | PromQL `rate` 윈도 |
+| `--prom-window` | `7d` | 볼륨을 평균할 기간(PromQL 기간, 5분 `rate` 스텝보다 짧으면 오류). pod가 더 짧게 살았거나 Prometheus 보존기간이 더 짧으면 있는 구간만 평균 |
 | `--verify` | | (scan 전용) L3: 전월 Cost Explorer 실제 비용과 대조. L1(AWS 인벤토리)을 얻지 못하면(자격증명 없음, 다른 계정 자격증명 등) 호출하지 않고 경고 |
 | `--no-aws` | | L1 끄기 (Kubernetes만 사용) |
 | `--fixture <file>` | | 클러스터 대신 스냅샷 JSON을 입력으로 사용. `--prometheus-url`/`--verify`는 무시하고 경고 |
@@ -203,7 +203,7 @@ WARNINGS
 - `grpc/ledger-api`: cross-zone을 끈 내부 NLB. 클라이언트가 DNS로 다른 AZ의 NLB 노드를 받으면 과금되지만 DNS 라우팅에 좌우돼 `low`이므로 수신량만 보여주고 금액은 비웁니다.
 - `WARNINGS`의 "볼륨을 측정하지 못한 과금 경로 2개": `default/kubernetes`(pod 없는 엔드포인트)와 `monitoring/node-exporter`는 과금 규칙에 걸리지만 볼륨을 재지 못해 UNCERTAIN으로 갔고, 그만큼 총액이 빠졌다는 뜻입니다.
 - AZ SPREAD = `목적지 AZ 수/호출자 AZ 수`, 목적지 AZ가 2개 이상이고 고르게 퍼져 있으면 `even`.
-- L2가 없으면 금액은 `?`, 총액은 `Estimated total: ? (L2 없음 — --prometheus-url)`로 나옵니다([`testdata/golden/l0-only.txt`](testdata/golden/l0-only.txt)). 이 골든에는 EKS Auto Mode ALB(`marketing/site`, ip 타겟 기본), ingress-nginx가 pod IP로 직접 붙는 zone-local 서비스(`admin/console`, `ingress-direct-backend`), 힌트를 설정했지만 확인되지 않은 서비스(`notify/worker`, `hints-unverified`), 비사설 IPv4 ALB 타겟(`partners/webhook`, `lb-exemption-unverified`), 판정 보류(`edge/relay`, `unclassified`) 예도 있습니다.
+- L2가 없으면 금액은 `?`, 총액은 `Estimated total: ? (L2 없음 — --prometheus-url)`로 나옵니다([`testdata/golden/l0-only.txt`](testdata/golden/l0-only.txt)). 이 골든에는 EKS Auto Mode ALB(`marketing/site`, ip 타겟 기본), ingress-nginx가 pod IP로 직접 붙는 zone-local 서비스(`admin/console`, `ingress-direct-backend`), topology-mode Auto를 설정했지만 컨트롤러가 힌트를 보류해 kube-proxy가 전체로 분산하는 서비스(`notify/worker`, BILLABLE의 `hints-withheld`), 비사설 IPv4 ALB 타겟(`partners/webhook`, `lb-exemption-unverified`), 판정 보류(`edge/relay`, `unclassified`) 예도 있습니다. kube-proxy add-on이 1.30에 남은 클러스터에서 annotation 없는 `trafficDistribution`(`hints-unverified`)과 보류된 Auto 힌트(`hints-withheld`)는 [`testdata/golden/stale-proxy.json`](testdata/golden/stale-proxy.json)에 있습니다.
 
 판정 근거는 `explain`으로 봅니다. 수집·분석 경고는 `crossaz: warning:`으로 stderr에 먼저 나옵니다(설명은 stdout).
 
@@ -214,7 +214,7 @@ cache/redis  (service)
   route:       clusterip  (evidence: k8s)
   callers:     cluster/*  ap-northeast-2a=8 ap-northeast-2b=8 ap-northeast-2c=8
   destination: ap-northeast-2a=3
-  facts:       az_spread=multi zone_coverage=partial topology_hints=false hints_configured=false zone_local=false direct_ingress_backend=false same_vpc=true private_ip=true traffic=client
+  facts:       az_spread=multi zone_coverage=partial kube_proxy_hints=true topology_hints=false hints_configured=false zone_local=false direct_ingress_backend=false same_vpc=true private_ip=true traffic=client
   rule:        clusterip-cross-az-partial  (billable: true, rule confidence: high)
   reason:      엔드포인트가 없는 AZ의 호출자는 항상 다른 AZ로 넘어감 (trafficDistribution으로도 해결 안 됨)
   source:      https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html  (verified 2026-09-14)
@@ -240,7 +240,7 @@ Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습�
 |---|---|---|---|
 | **L0 토폴로지** | Kubernetes API (위 ClusterRole) | 노드 AZ 분포, 서비스 라우트(ALB Ingress·LB annotation·ClusterIP·headless), EndpointSlice AZ 분포·힌트, 과금 판정 | 항상 |
 | **L1 AWS 확인** | AWS 자격증명 + 위 IAM 정책 | LB 실제 scheme·cross-zone·target type·AZ, zone 없는 엔드포인트 IP→AZ(클러스터 VPC의 ENI만), RDS/ElastiCache/MSK 경로 | 자격증명이 있고 `--no-aws`가 아닐 때. 일부 LB 조회 실패는 그 LB만 빼고(annotation 근거로 폴백) 경고 |
-| **L2 볼륨 추정** | Prometheus (cAdvisor `container_network_receive_bytes_total`) | 월 수신 바이트 → 금액 | `--prometheus-url`. 결과에 이 클러스터의 엔드포인트 pod가 하나도 없으면 L2 없음으로 처리하고 경고 |
+| **L2 볼륨 추정** | Prometheus (cAdvisor `container_network_receive_bytes_total`) | 월 수신 바이트 → 금액 | `--prometheus-url`. 결과에 이 클러스터의 엔드포인트 pod가 하나도 없으면(다른 클러스터, cAdvisor 누락, Prometheus가 수집한 지 10분 미만) L2 없음으로 처리하고 경고 |
 | **L3 자가 검증** | `ce:GetCostAndUsage` | 추정 대비 실제 비율 | `--verify` + L1 |
 | L4 실측 | VPC Flow Logs | 정밀 금액 | v1 범위 밖 |
 
@@ -287,7 +287,8 @@ Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습�
 | `nlb-client-cross-az` | **과금** | low | 리전 | `zonal-dns` |
 | `nlb-zonal-internet` | 비과금 | medium | 리전 | |
 | `clusterip-cross-az-partial` | **과금** | high | 리전 | `topologySpread` |
-| `hints-unverified` (trafficDistribution/topology-mode 설정, 힌트 사용 미확인. 엔드포인트가 모든 AZ에 있을 때만 — 없는 AZ가 있으면 위 규칙이 먼저 과금 확정) | **과금** | low | 리전 | |
+| `hints-unverified` (trafficDistribution/topology-mode 설정, kube-proxy가 이 서비스의 힌트를 쓰는지 미확인: 버전 모름·대체 프록시·annotation 없는 1.30 이하. 엔드포인트가 모든 AZ에 있을 때만 — 없는 AZ가 있으면 위 규칙이 먼저 과금 확정) | **과금** | low | 리전 | |
+| `hints-withheld` (힌트를 쓰는 kube-proxy인데 EndpointSlice에 힌트가 없음: topology-mode Auto가 엔드포인트 부족·과부하 기준으로 보류 등 → 모든 엔드포인트로 분산) | **과금** | high | 리전 | `PreferClose` (annotation 제거 후 설정) |
 | `clusterip-cross-az` | **과금** | high | 리전 | `PreferClose` |
 | `headless-cross-az` | **과금** | high | 리전 | `relocate` |
 | `rds-multiaz-replication`, `msk-inter-broker` | 비과금 | high | 리전 | |
@@ -336,10 +337,16 @@ CrossAZFraction = 1 − Σ_z (1 / 호출자 AZ 수) × 목적지 비중(z)
 Prometheus 쿼리 (`WINDOW` = `--prom-window`, 기본 `7d`):
 
 ```promql
-sum by (namespace, pod) (max by (namespace, pod, interface) (rate(container_network_receive_bytes_total{pod!=""}[WINDOW])))
+sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) (
+  rate(container_network_receive_bytes_total{pod!=""}[5m])
+    and container_network_receive_bytes_total{pod!=""} offset 5m
+))[WINDOW:5m]))
 ```
 
-`max by (…, interface)`는 런타임에 따라 컨테이너별로 중복되는 시계열을 제거합니다. 현재 ready 엔드포인트 pod만 매칭하므로 롤링 배포로 사라진 pod의 트래픽은 빠집니다.
+- 5분마다 5분 `rate`를 구해 **pod가 존재한 구간만** 평균합니다. `rate(x[7d])`는 증가량을 7일로 나누므로 14분 된 pod를 약 1/700로 줄였습니다(롤링 배포 직후 모든 경로가 `--threshold` 아래로 숨음). 보존기간이 `WINDOW`보다 짧아도 같은 이유로 평균이 줄지 않습니다.
+- `and … offset 5m`은 5분 전에도 샘플이 있던 스텝만 남겨, 막 뜬 pod의 반쪽 스텝이 평균을 끌어내리지 않게 합니다. 그래서 5~10분이 안 된 pod는 미측정이고, 같은 서비스의 측정된 pod로 외삽합니다(`k/n pods measured`).
+- `max by (…, interface)`는 런타임에 따라 컨테이너별로 중복되는 시계열을 제거합니다. 현재 ready 엔드포인트 pod만 매칭하므로 롤링 배포로 사라진 pod의 트래픽은 빠집니다.
+- 서브쿼리라 Prometheus 부하가 `WINDOW`/5분 스텝 수(7d = 2016)에 비례합니다. pod가 아주 많아 `query.max-samples`나 타임아웃에 걸리면 `--prom-window`를 줄이세요. `rate[5m]`에는 스크레이프 간격이 2분 30초 이하여야 합니다.
 
 가정:
 
@@ -356,7 +363,7 @@ sum by (namespace, pod) (max by (namespace, pod, interface) (rate(container_netw
 
 - **추정치이며 실측이 아닙니다.** `--verify`로 교차 확인을 권장합니다.
 - 클러스터 밖에서 시작하는 트래픽(다른 워크로드·EC2·Lambda 등)은 범위 밖입니다. RDS/ElastiCache/MSK는 경로와 AZ 분포만 보고, 클러스터와 실제 통신하는지·볼륨은 모르므로 `low`, 금액 `?`입니다.
-- **AWS VPC CNI + kube-proxy**를 전제합니다. Cilium kube-proxy replacement, EKS Auto Mode의 힌트 동작은 미검증이라 kube-proxy DaemonSet이 없으면(또는 `get daemonsets/kube-proxy` 권한이 없으면) zone-local을 인정하지 않습니다. `trafficDistribution`/`topology-mode`를 설정한 서비스는 `hints-unverified`(과금 가능, low)로, 설정하지 않은 서비스는 과금으로 판정합니다. 실측이 필요하면 [kubezonnet](https://github.com/polarsignals/kubezonnet)을 권장합니다.
+- **AWS VPC CNI + kube-proxy**를 전제합니다. Cilium kube-proxy replacement, EKS Auto Mode의 힌트 동작은 미검증이라 kube-proxy DaemonSet이 없으면(또는 `get daemonsets/kube-proxy` 권한이 없으면) zone-local을 인정하지 않습니다. `trafficDistribution`/`topology-mode`를 설정한 서비스는 `hints-unverified`(과금 가능, low)로, 설정하지 않은 서비스는 과금으로 판정합니다. kube-proxy가 힌트를 쓰는 버전으로 확인됐는데 EndpointSlice에 힌트가 없으면(topology-mode Auto의 보류 등) kube-proxy가 전체로 분산하므로 `hints-withheld`(과금, high)입니다. 실측이 필요하면 [kubezonnet](https://github.com/polarsignals/kubezonnet)을 권장합니다.
 - pod IP로 직접 연결하는 Ingress 컨트롤러(ingress-nginx 기본값 등)는 kube-proxy 힌트를 우회합니다. 그런 Ingress가 가리키는 zone-local 서비스는 `ingress-direct-backend`(low)로 두며, 컨트롤러 자체의 zone-aware 설정은 읽지 않습니다. `nginx.ingress.kubernetes.io/service-upstream: "true"`면 ClusterIP를 거치므로 zone-local을 인정합니다.
 - ALB IP 타겟 모드는 EKS Best Practices를 근거로 비과금(`medium`)으로 판정하지만, EC2 요금 문구가 "EC2 인스턴스"만 명시하므로 여전히 `--verify` 대조 가치가 있습니다.
 - 호출자 AZ 분포를 균등으로 가정합니다. 호출자가 한 AZ에 몰린 워크로드에서는 오차가 커집니다.
@@ -381,7 +388,9 @@ crossaz scan --dump-fixture > testdata/fixtures/x.json   # 익명화된 스냅�
 crossaz scan --fixture testdata/fixtures/x.json          # 클러스터 없이 재현
 ```
 
-`--dump-fixture`는 IP·노드 이름·인스턴스 ID·VPC/서브넷 ID·LB와 타겟그룹 이름/DNS를 sha256 기반으로 결정적으로 치환합니다(조인 보존, 사설/공인 IPv4·IPv6 구분 유지). 판정에 쓰지 않는 annotation은 버리고(LB/TG 속성 annotation은 cross-zone 값만 남김), 경고는 치환한 값을 바꾼 뒤 `<레이어>: <대상>: <redacted>`까지만 남겨 AWS/Kubernetes/HTTP 에러 원문(계정 ID, principal ARN, 이메일, 홈 경로 등)을 지웁니다. **클러스터 이름, 네임스페이스·서비스·pod·Ingress·owner 이름, RDS/ElastiCache/MSK 식별자, Cost Explorer `actualUsd`는 그대로 남으므로** 커밋 전에 확인하세요.
+`--dump-fixture`는 IP·노드 이름·인스턴스 ID·VPC/서브넷 ID·LB와 타겟그룹 이름/DNS를 sha256 기반으로 결정적으로 치환합니다(조인 보존, 사설/공인 IPv4·IPv6 구분 유지). 판정에 쓰지 않는 annotation은 버리고(LB/TG 속성 annotation은 cross-zone 값만 남김), 경고는 치환한 값을 바꾼 뒤 `<레이어>: <대상>: <redacted>`까지만 남겨 AWS/Kubernetes/HTTP 에러 원문(계정 ID, principal ARN, 이메일, 홈 경로 등)을 지웁니다. static pod의 mirror pod(owner가 Node)는 이름 끝의 노드 이름과 owner 이름도 같은 값으로 치환합니다. **클러스터 이름, 네임스페이스·서비스·pod·Ingress·owner 이름(그 외), RDS/ElastiCache/MSK 식별자, Cost Explorer `actualUsd`는 그대로 남으므로** 커밋 전에 확인하세요.
+
+실제 클러스터 검증은 [`hack/e2e`](hack/e2e/README.md)에 있습니다. kind(3 AZ 라벨, 노드 6개)에 시나리오를 띄워 L0 판정, kube-proxy가 실제로 AZ를 넘기는 비율, Prometheus(cAdvisor) 볼륨 추정을 확인합니다(`hack/e2e/run.sh`, 약 10분, AWS 불필요).
 
 설계와 패키지 계약: [`docs/design.md`](docs/design.md). 과금 규칙 근거: [`docs/billing-rules.md`](docs/billing-rules.md).
 

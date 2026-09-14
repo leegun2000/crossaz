@@ -92,7 +92,8 @@ func servicePath(s model.Snapshot, svc model.Service, callers model.AZDistributi
 	sr := withLoadBalancer(decideRoute(s, svc, callers), s.AWS)
 	zones := endpointZones(ready, s.AWS)
 	dests, unknown := zoneDist(zones)
-	hints := kubeProxyOnPath(sr) && kubeProxyUsesHints(s.KubeProxyVersion, svc.Annotations) && allHinted(ready)
+	proxyHints := kubeProxyOnPath(sr) && kubeProxyUsesHints(s.KubeProxyVersion, svc.Annotations)
+	hints := proxyHints && allHinted(ready)
 	var hintedFor map[string]model.AZDistribution
 	if hints {
 		hintedFor = hintedForZones(ready, zones)
@@ -110,6 +111,7 @@ func servicePath(s model.Snapshot, svc model.Service, callers model.AZDistributi
 		PrivateIP:             allPrivateIPv4(ready),
 		AZSpread:              azSpread(spreadCallers(sr, callers), dests, unknown),
 		ZoneCoverage:          zoneCoverage(sr.source.AZDist, dests, unknown),
+		KubeProxyHints:        proxyHints,
 		TopologyHints:         hints,
 		ZoneLocal:             nodeLocal || hints && unknown == 0 && model.HintedCrossAZFraction(callers, dests, hintedFor) == 0,
 		Evidence:              sr.evidence,

@@ -12,10 +12,19 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
-	promQueryFormat   = `sum by (namespace, pod) (max by (namespace, pod, interface) (rate(container_network_receive_bytes_total{pod!=""}[%s])))`
+	// promQueryFormat (%[1]s window, %[2]s step) averages a step-long rate over the window in steps. A step counts
+	// only when the series already had a sample one step earlier, so its rate range is fully covered, and
+	// avg_over_time divides by the steps that exist: a pod younger than the window, or Prometheus retention shorter
+	// than it, is not diluted by the whole window (plain rate(x[7d]) divides by 7d).
+	promQueryFormat = `sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) ` +
+		`(rate(container_network_receive_bytes_total{pod!=""}[%[2]s]) and container_network_receive_bytes_total{pod!=""} offset %[2]s))[%[1]s:%[2]s]))`
+	// promStep is the rate range and subquery step; kept as PromQL text and as a duration for window checks.
+	promStep          = "5m"
+	promStepDuration  = 5 * time.Minute
 	promSnippetBytes  = 200
 	promStatusSuccess = "success"
 	promResultVector  = "vector"
@@ -25,7 +34,13 @@ const (
 )
 
 // promWindowRE guards the only user value interpolated into PromQL.
-var promWindowRE = regexp.MustCompile(`^[0-9]+(ms|s|m|h|d|w|y)$`)
+var promWindowRE = regexp.MustCompile(`^([0-9]+)(ms|s|m|h|d|w|y)$`)
+
+// promUnits are the PromQL duration units promWindowRE accepts.
+var promUnits = map[string]time.Duration{
+	"ms": time.Millisecond, "s": time.Second, "m": time.Minute, "h": time.Hour,
+	"d": 24 * time.Hour, "w": 7 * 24 * time.Hour, "y": 365 * 24 * time.Hour,
+}
 
 type promCollector struct {
 	baseURL string
@@ -56,10 +71,10 @@ func NewPrometheus(baseURL string, hc *http.Client) VolumeCollector {
 }
 
 func (p promCollector) PodRecvBytesPerSecond(ctx context.Context, window string) (map[string]float64, error) {
-	if !promWindowRE.MatchString(window) {
-		return nil, fmt.Errorf("prometheus: invalid window %q: want a PromQL duration such as 7d", window)
+	if err := promCheckWindow(window); err != nil {
+		return nil, err
 	}
-	endpoint, err := p.queryURL(fmt.Sprintf(promQueryFormat, window))
+	endpoint, err := p.queryURL(fmt.Sprintf(promQueryFormat, window, promStep))
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +83,24 @@ func (p promCollector) PodRecvBytesPerSecond(ctx context.Context, window string)
 		return nil, err
 	}
 	return promVector(resp)
+}
+
+// promCheckWindow accepts a PromQL duration that holds at least one step. A shorter window could contain no
+// step and read as "no pods measured".
+func promCheckWindow(window string) error {
+	m := promWindowRE.FindStringSubmatch(window)
+	if m == nil {
+		return fmt.Errorf("prometheus: invalid window %q: want a PromQL duration such as 7d", window)
+	}
+	n, err := strconv.ParseInt(m[1], 10, 64)
+	if err != nil {
+		return fmt.Errorf("prometheus: invalid window %q: %w", window, err)
+	}
+	unit := promUnits[m[2]]
+	if n < int64((promStepDuration+unit-1)/unit) { // n*unit < step, without overflow
+		return fmt.Errorf("prometheus: window %q is shorter than the %s rate step", window, promStep)
+	}
+	return nil
 }
 
 func (p promCollector) queryURL(query string) (string, error) {

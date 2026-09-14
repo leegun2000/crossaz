@@ -677,7 +677,7 @@ func TestWithVolumeRejectsResultsMatchingNoEndpointPod(t *testing.T) {
 			}
 			wantWarnings := []string{"existing"}
 			if tt.wantWarning {
-				wantWarnings = append(wantWarnings, "L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터이거나 cAdvisor 메트릭 누락")
+				wantWarnings = append(wantWarnings, "L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터, cAdvisor 메트릭 누락, 또는 수집한 지 10분 미만")
 			}
 			if !reflect.DeepEqual(got.Warnings, wantWarnings) {
 				t.Errorf("Warnings = %q, want %q", got.Warnings, wantWarnings)

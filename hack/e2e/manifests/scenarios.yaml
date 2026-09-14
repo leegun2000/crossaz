@@ -1,0 +1,370 @@
+# L0 verdict scenarios: one namespace per scenario. Backends are pause containers (always Ready, no traffic);
+# placement is forced with topologySpreadConstraints (maxSkew 1 over zones) or a zone nodeSelector.
+# Expected verdicts live in hack/e2e/e2e_test.go (expectedVerdicts).
+apiVersion: v1
+kind: Namespace
+metadata: {name: payments}
+---
+# 6 replicas, 2 per zone, no trafficDistribution -> clusterip-cross-az
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: api, namespace: payments}
+spec:
+  replicas: 6
+  selector: {matchLabels: {app: api}}
+  template:
+    metadata: {labels: {app: api}}
+    spec:
+      terminationGracePeriodSeconds: 0
+      topologySpreadConstraints:
+        - {maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: {matchLabels: {app: api}}}
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+          resources: {requests: {cpu: 1m, memory: 4Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: api, namespace: payments}
+spec:
+  selector: {app: api}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: cache}
+---
+# 2 replicas, both in zone a -> callers in b/c always cross -> clusterip-cross-az-partial
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: redis, namespace: cache}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: redis}}
+  template:
+    metadata: {labels: {app: redis}}
+    spec:
+      terminationGracePeriodSeconds: 0
+      nodeSelector: {topology.kubernetes.io/zone: ap-northeast-2a}
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+          resources: {requests: {cpu: 1m, memory: 4Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: redis, namespace: cache}
+spec:
+  selector: {app: redis}
+  ports: [{port: 6379}]
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: orders}
+---
+# 6 replicas + trafficDistribution: the EndpointSlice controller writes same-zone hints -> topology-aware-routing
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: api, namespace: orders}
+spec:
+  replicas: 6
+  selector: {matchLabels: {app: api}}
+  template:
+    metadata: {labels: {app: api}}
+    spec:
+      terminationGracePeriodSeconds: 0
+      topologySpreadConstraints:
+        - {maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: {matchLabels: {app: api}}}
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+          resources: {requests: {cpu: 1m, memory: 4Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: api, namespace: orders}
+spec:
+  selector: {app: api}
+  trafficDistribution: PreferSameZone
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: notify}
+---
+# topology-mode Auto with 4 endpoints over 3 equal-CPU zones (2/1/1): every zone has an endpoint, but the
+# controller's minimum allocation ceil(4/3 / 1.2) = 2 per zone needs 6 > 4 endpoints, so it withholds hints
+# (event TopologyAwareHintsDisabled "Unable to allocate minimum required endpoints to each zone without
+# exceeding overload threshold"), so kube-proxy spreads over all 4 -> hints-withheld. 6 replicas would get hints.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: worker, namespace: notify}
+spec:
+  replicas: 4
+  selector: {matchLabels: {app: worker}}
+  template:
+    metadata: {labels: {app: worker}}
+    spec:
+      terminationGracePeriodSeconds: 0
+      topologySpreadConstraints:
+        - {maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: {matchLabels: {app: worker}}}
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+          resources: {requests: {cpu: 1m, memory: 4Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker
+  namespace: notify
+  annotations: {service.kubernetes.io/topology-mode: Auto}
+spec:
+  selector: {app: worker}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: events}
+---
+# StatefulSet behind a headless Service -> headless-cross-az
+apiVersion: v1
+kind: Service
+metadata: {name: kafka, namespace: events}
+spec:
+  clusterIP: None
+  selector: {app: kafka}
+  ports: [{port: 9092}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: kafka, namespace: events}
+spec:
+  serviceName: kafka
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector: {matchLabels: {app: kafka}}
+  template:
+    metadata: {labels: {app: kafka}}
+    spec:
+      terminationGracePeriodSeconds: 0
+      topologySpreadConstraints:
+        - {maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: {matchLabels: {app: kafka}}}
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+          resources: {requests: {cpu: 1m, memory: 4Mi}}
+---
+# ---------------------------------------------------------------- ALB (self-managed AWS Load Balancer Controller)
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata: {name: alb}
+spec: {controller: ingress.k8s.aws/alb}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: ingress-alb}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: ingress-alb}
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      terminationGracePeriodSeconds: 0
+      topologySpreadConstraints:
+        - {maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: {matchLabels: {app: web}}}
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+          resources: {requests: {cpu: 1m, memory: 4Mi}}
+---
+# target-type ip -> alb-ip-target-mode
+apiVersion: v1
+kind: Service
+metadata: {name: web-ip, namespace: ingress-alb}
+spec:
+  selector: {app: web}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ip
+  namespace: ingress-alb
+  annotations: {alb.ingress.kubernetes.io/target-type: ip}
+spec:
+  ingressClassName: alb
+  defaultBackend: {service: {name: web-ip, port: {number: 80}}}
+---
+# instance target (LBC default) + NodePort + externalTrafficPolicy Cluster -> nodeport-hop-cross-az
+apiVersion: v1
+kind: Service
+metadata: {name: web-instance, namespace: ingress-alb}
+spec:
+  type: NodePort
+  externalTrafficPolicy: Cluster
+  selector: {app: web}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: web-instance, namespace: ingress-alb}
+spec:
+  ingressClassName: alb
+  defaultBackend: {service: {name: web-instance, port: {number: 80}}}
+---
+# instance target + externalTrafficPolicy Local: no kube-proxy hop -> alb-private-same-vpc
+apiVersion: v1
+kind: Service
+metadata: {name: web-local, namespace: ingress-alb}
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local
+  selector: {app: web}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: web-local, namespace: ingress-alb}
+spec:
+  ingressClassName: alb
+  defaultBackend: {service: {name: web-local, port: {number: 80}}}
+---
+# ---------------------------------------------------------------- ALB (EKS Auto Mode): ip targets by default
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata: {name: eks-auto-alb}
+spec: {controller: eks.amazonaws.com/alb}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: ingress-automode}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: ingress-automode}
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      terminationGracePeriodSeconds: 0
+      topologySpreadConstraints:
+        - {maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: {matchLabels: {app: web}}}
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+          resources: {requests: {cpu: 1m, memory: 4Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: web, namespace: ingress-automode}
+spec:
+  selector: {app: web}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: web, namespace: ingress-automode}
+spec:
+  ingressClassName: eks-auto-alb
+  defaultBackend: {service: {name: web, port: {number: 80}}}
+---
+# ---------------------------------------------------------------- ingress-nginx dials pod IPs directly
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata: {name: nginx}
+spec: {controller: k8s.io/ingress-nginx}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: ingress-nginx}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: ingress-nginx}
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      terminationGracePeriodSeconds: 0
+      topologySpreadConstraints:
+        - {maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: {matchLabels: {app: web}}}
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+          resources: {requests: {cpu: 1m, memory: 4Mi}}
+---
+# zone-local for kube-proxy (PreferSameZone hints), but nginx bypasses kube-proxy -> ingress-direct-backend
+apiVersion: v1
+kind: Service
+metadata: {name: web, namespace: ingress-nginx}
+spec:
+  selector: {app: web}
+  trafficDistribution: PreferSameZone
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: web, namespace: ingress-nginx}
+spec:
+  ingressClassName: nginx
+  defaultBackend: {service: {name: web, port: {number: 80}}}
+---
+# ---------------------------------------------------------------- NLB (no controller runs: status stays pending)
+apiVersion: v1
+kind: Namespace
+metadata: {name: edge}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: gateway, namespace: edge}
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: gateway}}
+  template:
+    metadata: {labels: {app: gateway}}
+    spec:
+      terminationGracePeriodSeconds: 0
+      topologySpreadConstraints:
+        - {maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: {matchLabels: {app: gateway}}}
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+          resources: {requests: {cpu: 1m, memory: 4Mi}}
+---
+# cross-zone on via the LB attributes annotation -> nlb-cross-zone
+apiVersion: v1
+kind: Service
+metadata:
+  name: nlb-xz
+  namespace: edge
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-attributes: load_balancing.cross_zone.enabled=true
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+spec:
+  type: LoadBalancer
+  loadBalancerClass: service.k8s.aws/nlb
+  selector: {app: gateway}
+  ports: [{port: 443, targetPort: 8443}]
+---
+# no cross-zone annotation: the real setting is unknown without L1 -> nlb-cross-zone-unknown
+apiVersion: v1
+kind: Service
+metadata:
+  name: nlb-unknown
+  namespace: edge
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+spec:
+  type: LoadBalancer
+  loadBalancerClass: service.k8s.aws/nlb
+  selector: {app: gateway}
+  ports: [{port: 443, targetPort: 8443}]

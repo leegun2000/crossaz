@@ -10,3 +10,6 @@ dist/
 coverage.out
 coverage.html
 *.coverprofile
+
+# hack/e2e/run.sh: kubeconfig of the kind e2e cluster
+hack/e2e/.kubeconfig

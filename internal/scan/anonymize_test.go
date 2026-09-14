@@ -138,6 +138,42 @@ func TestAnonymizeLeavesNoOriginalIdentifier(t *testing.T) {
 	}
 }
 
+func TestAnonymizeReplacesNodeNameInMirrorPods(t *testing.T) {
+	// Arrange: the kubelet names a static pod's mirror "<pod>-<node>" and makes the Node its owner
+	// (seen on kind: kube-system/etcd-crossaz-e2e-control-plane, ownerName crossaz-e2e-control-plane).
+	mirror := "etcd-" + origNode
+	s := sensitiveSnapshot()
+	s.Pods = append(s.Pods, model.Pod{Namespace: "kube-system", Name: mirror, NodeName: origNode, IP: "10.20.1.37", HostNetwork: true, OwnerKind: "Node", OwnerName: origNode})
+	s.Services = append(s.Services, model.Service{Namespace: "kube-system", Name: "etcd", Type: "ClusterIP", ClusterIP: "None",
+		Endpoints: []model.Endpoint{{IP: "10.20.1.37", PodName: mirror, NodeName: origNode, Zone: "ap-northeast-2a", Ready: true}}})
+	s.Volume.RecvBytesPerS["kube-system/"+mirror] = 3
+
+	// Act
+	got := Anonymize(s)
+
+	// Assert
+	node, pod, ep := got.Nodes[0].Name, got.Pods[1], got.Services[2].Endpoints[0]
+	if want := "etcd-" + node; pod.Name != want || pod.OwnerName != node || pod.OwnerKind != "Node" {
+		t.Errorf("mirror pod = %s owner %s/%s, want %s owner Node/%s", pod.Name, pod.OwnerKind, pod.OwnerName, want, node)
+	}
+	if ep.PodName != pod.Name {
+		t.Errorf("endpoint PodName %q, want the renamed pod %q", ep.PodName, pod.Name)
+	}
+	if v, ok := got.Volume.RecvBytesPerS["kube-system/"+pod.Name]; !ok || v != 3 {
+		t.Errorf("volume keys %v: want kube-system/%s = 3", got.Volume.RecvBytesPerS, pod.Name)
+	}
+	if got.Pods[0].Name != "gateway-0" {
+		t.Errorf("non-mirror pod renamed to %q", got.Pods[0].Name)
+	}
+	data, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(strings.ToLower(string(data)), strings.ToLower(origNode)) {
+		t.Errorf("anonymized JSON still contains node name %q", origNode)
+	}
+}
+
 func TestKeepAnnotationsKeepsOnlyWhatClassifyReads(t *testing.T) {
 	const (
 		lbAttrs = "service.beta.kubernetes.io/aws-load-balancer-attributes"

@@ -183,12 +183,13 @@ type Facts struct {
 	ExternalTrafficPolicy string    `json:"externalTrafficPolicy,omitempty"` // Cluster|Local
 	Traffic               string    `json:"traffic"`                         // client|replication
 	SameVPC               bool      `json:"sameVpc"`
-	PrivateIP             bool      `json:"privateIp"`     // every destination IP is private IPv4 (IPv6 exemptions are unverified)
-	AZSpread              string    `json:"azSpread"`      // single (callers ∪ dests within one zone) | multi | unknown
-	ZoneCoverage          string    `json:"zoneCoverage"`  // full (dest zones ⊇ caller zones) | partial | unknown
-	TopologyHints         bool      `json:"topologyHints"` // kube-proxy is on the path AND every ready endpoint has hints.forZones (kube-proxy filters by zone)
-	ZoneLocal             bool      `json:"zoneLocal"`     // internalTrafficPolicy Local, or TopologyHints with every caller zone served only by same-zone endpoints
-	Evidence              string    `json:"evidence"`      // k8s|aws|annotation
+	PrivateIP             bool      `json:"privateIp"`      // every destination IP is private IPv4 (IPv6 exemptions are unverified)
+	AZSpread              string    `json:"azSpread"`       // single (callers ∪ dests within one zone) | multi | unknown
+	ZoneCoverage          string    `json:"zoneCoverage"`   // full (dest zones ⊇ caller zones) | partial | unknown
+	KubeProxyHints        bool      `json:"kubeProxyHints"` // kube-proxy is on the path and its version is known to honor hints for this Service
+	TopologyHints         bool      `json:"topologyHints"`  // KubeProxyHints AND every ready endpoint has hints.forZones (kube-proxy filters by zone)
+	ZoneLocal             bool      `json:"zoneLocal"`      // internalTrafficPolicy Local, or TopologyHints with every caller zone served only by same-zone endpoints
+	Evidence              string    `json:"evidence"`       // k8s|aws|annotation
 	// HintsConfigured: the Service asks for zone routing (trafficDistribution, or a topology-mode /
 	// topology-aware-hints annotation that is not "disabled"), whether or not kube-proxy honors it.
 	HintsConfigured bool `json:"hintsConfigured"`

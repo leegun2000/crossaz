@@ -1,0 +1,175 @@
+# Real kube-proxy routing: agnhost netexec servers behind three Services, one busybox client Job per zone.
+# Each client makes REQUESTS fresh connections (one wget process each) to every Service's /hostname and prints
+# "<service> <server pod name>" per line ("<service> ERR" on failure). run.sh applies the servers first
+# (selector e2e.crossaz.io/role=server), waits for rollouts and hints, then the clients (role=client).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: traffic
+  labels: {e2e.crossaz.io/role: server}
+---
+# 6 replicas, 2 per zone, shared by spread-default and spread-close
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spread
+  namespace: traffic
+  labels: {e2e.crossaz.io/role: server}
+spec:
+  replicas: 6
+  selector: {matchLabels: {app: spread}}
+  template:
+    metadata: {labels: {app: spread}}
+    spec:
+      terminationGracePeriodSeconds: 1
+      topologySpreadConstraints:
+        - {maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: {matchLabels: {app: spread}}}
+      containers:
+        - name: netexec
+          image: registry.k8s.io/e2e-test-images/agnhost:2.61@sha256:101f3357d1ad890c3090e78ea6c6a47dc5137cbe19836796e13d5dcb2b84d2e6
+          args: [netexec, --http-port=8080]
+          ports: [{containerPort: 8080}]
+          readinessProbe: {tcpSocket: {port: 8080}, periodSeconds: 2}
+          resources: {requests: {cpu: 10m, memory: 16Mi}}
+---
+# 2 replicas, both in zone a
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: one-zone
+  namespace: traffic
+  labels: {e2e.crossaz.io/role: server}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: one-zone}}
+  template:
+    metadata: {labels: {app: one-zone}}
+    spec:
+      terminationGracePeriodSeconds: 1
+      nodeSelector: {topology.kubernetes.io/zone: ap-northeast-2a}
+      containers:
+        - name: netexec
+          image: registry.k8s.io/e2e-test-images/agnhost:2.61@sha256:101f3357d1ad890c3090e78ea6c6a47dc5137cbe19836796e13d5dcb2b84d2e6
+          args: [netexec, --http-port=8080]
+          ports: [{containerPort: 8080}]
+          readinessProbe: {tcpSocket: {port: 8080}, periodSeconds: 2}
+          resources: {requests: {cpu: 10m, memory: 16Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spread-default
+  namespace: traffic
+  labels: {e2e.crossaz.io/role: server}
+spec:
+  selector: {app: spread}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spread-close
+  namespace: traffic
+  labels: {e2e.crossaz.io/role: server}
+spec:
+  selector: {app: spread}
+  trafficDistribution: PreferSameZone
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: one-zone
+  namespace: traffic
+  labels: {e2e.crossaz.io/role: server}
+spec:
+  selector: {app: one-zone}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: client
+  namespace: traffic
+  labels: {e2e.crossaz.io/role: client}
+data:
+  client.sh: |
+    set -u
+    services="spread-default spread-close one-zone"
+    for svc in $services; do
+      until wget -q -T 2 -O /dev/null "http://$svc/hostname"; do sleep 1; done
+    done
+    for svc in $services; do
+      i=0
+      while [ "$i" -lt "$REQUESTS" ]; do
+        host=$(wget -q -T 2 -O - "http://$svc/hostname" 2>/dev/null) || host=ERR
+        echo "$svc $host"
+        i=$((i + 1))
+      done
+    done
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: client-a
+  namespace: traffic
+  labels: {e2e.crossaz.io/role: client}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  template:
+    metadata: {labels: {app: client}}
+    spec:
+      restartPolicy: Never
+      nodeSelector: {topology.kubernetes.io/zone: ap-northeast-2a}
+      containers:
+        - name: client
+          image: docker.io/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+          command: [sh, /client/client.sh]
+          env: [{name: REQUESTS, value: "400"}]
+          volumeMounts: [{name: client, mountPath: /client}]
+      volumes: [{name: client, configMap: {name: client}}]
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: client-b
+  namespace: traffic
+  labels: {e2e.crossaz.io/role: client}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  template:
+    metadata: {labels: {app: client}}
+    spec:
+      restartPolicy: Never
+      nodeSelector: {topology.kubernetes.io/zone: ap-northeast-2b}
+      containers:
+        - name: client
+          image: docker.io/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+          command: [sh, /client/client.sh]
+          env: [{name: REQUESTS, value: "400"}]
+          volumeMounts: [{name: client, mountPath: /client}]
+      volumes: [{name: client, configMap: {name: client}}]
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: client-c
+  namespace: traffic
+  labels: {e2e.crossaz.io/role: client}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  template:
+    metadata: {labels: {app: client}}
+    spec:
+      restartPolicy: Never
+      nodeSelector: {topology.kubernetes.io/zone: ap-northeast-2c}
+      containers:
+        - name: client
+          image: docker.io/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+          command: [sh, /client/client.sh]
+          env: [{name: REQUESTS, value: "400"}]
+          volumeMounts: [{name: client, mountPath: /client}]
+      volumes: [{name: client, configMap: {name: client}}]

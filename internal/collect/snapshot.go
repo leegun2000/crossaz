@@ -20,7 +20,7 @@ const (
 	snapWarnNoInstanceIDs = "L1: 노드에 EC2 instance ID가 없어 AWS 조회를 건너뜀"
 	snapWarnNoVPCs        = "L1: 노드 인스턴스의 VPC를 찾지 못해 AWS 조회를 건너뜀"
 	snapWarnNoRegion      = "L3: 리전을 알 수 없어 Cost Explorer 조회를 건너뜀"
-	snapWarnVolumeNoMatch = "L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터이거나 cAdvisor 메트릭 누락"
+	snapWarnVolumeNoMatch = "L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터, cAdvisor 메트릭 누락, 또는 수집한 지 10분 미만"
 )
 
 // GatherK8s collects the L0 snapshot. Object listing failures are fatal; version lookups only warn.

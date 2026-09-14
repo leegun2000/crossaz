@@ -32,6 +32,7 @@ func TestExplainKnownCostPath(t *testing.T) {
 	p.SourceURL = "https://path.example/clusterip"
 	p.ConfidenceNote = "3/3 pods measured"
 	p.Facts.HintsConfigured = true
+	p.Facts.KubeProxyHints = true
 	p.Facts.DirectIngressBackend = true
 	p.Fix.Command = "kubectl patch svc -n payments api \\\n  -p '{}'\n"
 	paths := []model.Path{excludedPath(), p}
@@ -45,7 +46,7 @@ func TestExplainKnownCostPath(t *testing.T) {
 		"  route:       clusterip  (evidence: k8s)\n",
 		"  callers:     cluster/*  ap-northeast-2a=2 ap-northeast-2b=2 ap-northeast-2c=2\n",
 		"  destination: ap-northeast-2a=2 ap-northeast-2b=2 ap-northeast-2c=2\n",
-		"  facts:       az_spread=multi topology_hints=false hints_configured=true zone_local=false direct_ingress_backend=true same_vpc=false private_ip=false\n",
+		"  facts:       az_spread=multi kube_proxy_hints=true topology_hints=false hints_configured=true zone_local=false direct_ingress_backend=true same_vpc=false private_ip=false\n",
 		"  rule:        clusterip-cross-az  (billable: true, rule confidence: high)\n",
 		"  source:      https://path.example/clusterip  (verified 2026-09-14)\n",
 		"  estimate:    recv 4.2 TB/mo × cross-AZ 0.667 × $0.02/GB = ~$56\n",
@@ -80,7 +81,7 @@ func TestExplainUnknownCostAndRuleFallbacks(t *testing.T) {
 
 	// Assert
 	want := []string{
-		"  facts:       topology_hints=false hints_configured=false zone_local=false direct_ingress_backend=false scheme=internal same_vpc=false private_ip=false traffic=client\n",
+		"  facts:       kube_proxy_hints=false topology_hints=false hints_configured=false zone_local=false direct_ingress_backend=false scheme=internal same_vpc=false private_ip=false traffic=client\n",
 		"  source:      https://rule.example/rds  (unverified)\n",
 		"  estimate:    클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음\n",
 		"  confidence:  low\n",

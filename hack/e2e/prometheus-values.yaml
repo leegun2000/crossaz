@@ -1,0 +1,18 @@
+# prometheus-community/prometheus chart 29.30.0 (run.sh pins the version). Only the server runs.
+# The default scrape configs stay, including kubernetes-nodes-cadvisor (container_network_receive_bytes_total).
+alertmanager: {enabled: false}
+prometheus-pushgateway: {enabled: false}
+prometheus-node-exporter: {enabled: false}
+kube-state-metrics: {enabled: false}
+configmapReload:
+  prometheus: {enabled: false}
+server:
+  image:
+    repository: quay.io/prometheus/prometheus
+    tag: v3.14.0
+    digest: sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0
+  global:
+    scrape_interval: 15s
+    evaluation_interval: 15s
+  persistentVolume: {enabled: false}
+  retention: 1d

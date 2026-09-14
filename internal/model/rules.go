@@ -45,6 +45,7 @@ type Match struct {
 	Evidence              StringSet `json:"evidence,omitempty"`
 	SameVPC               *bool     `json:"same_vpc,omitempty"`
 	PrivateIP             *bool     `json:"private_ip,omitempty"`
+	KubeProxyHints        *bool     `json:"kube_proxy_hints,omitempty"`
 	TopologyHints         *bool     `json:"topology_hints,omitempty"`
 	ZoneLocal             *bool     `json:"zone_local,omitempty"`
 	HintsConfigured       *bool     `json:"hints_configured,omitempty"`

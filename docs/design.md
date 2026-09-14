@@ -32,7 +32,7 @@ SPEC_1.md를 검토하며 바꾼 결정과 패키지 간 계약. 과금 사실�
 | B4 | PreferClose 권고만 | 이미 PreferClose가 걸린 서비스를 다시 과금 | `zone_local` 사실 추가(힌트 기반, §D) → 비과금 medium |
 | B5 | 커버리지 무시 | 엔드포인트 없는 AZ의 호출자는 PreferClose로도 넘어감 | `zone_coverage: partial` → fix `topologySpread` |
 | B6 | ALB 뒤 서비스 = 무료 | **instance 타겟 + externalTrafficPolicy: Cluster**면 kube-proxy가 다른 AZ pod로 한 번 더 보냄 → 과금 (EKS BP 명시) | `nodeport-hop-cross-az` 규칙: route alb/clb/nlb-zonal/nlb(cross-zone 모름 포함) + instance + Cluster + zone_local=false. cross-zone을 몰라도 홉은 과금이므로 `nlb-cross-zone-unknown`보다 앞 |
-| B7 | §8 `increase(...[30d])` by pod | 롤링 배포로 pod 이름이 바뀌면 매칭 실패, 런타임에 따라 컨테이너별 중복 시계열, 30d는 흔한 보존기간 초과 | 현재 엔드포인트 pod의 `rate[window]`(기본 7d) × 30일, `max by (namespace,pod,interface)`로 중복 제거 |
+| B7 | §8 `increase(...[30d])` by pod | 롤링 배포로 pod 이름이 바뀌면 매칭 실패, 런타임에 따라 컨테이너별 중복 시계열, 30d는 흔한 보존기간 초과 | 현재 엔드포인트 pod의 수신 속도를 window(기본 7d) 중 **pod가 존재한 5분 스텝만** 평균(`avg_over_time(rate[5m] and offset 5m [window:5m])`) × 30일, `max by (namespace,pod,interface)`로 중복 제거. `rate[window]`는 window 전체로 나눠 window보다 어린 pod·짧은 보존기간을 크게 줄이므로 쓰지 않음(e2e에서 14분 pod가 1/700) |
 | B8 | CostPerMo float64 | 0과 "모름" 구분 불가 | `*float64` (nil → `?`) |
 | B9 | 수집기에 Ingress 없음 | L0에서 ALB 뒤 서비스 식별 불가 → 핵심 오탐 | `Ingresses`, `IngressClasses` 추가 |
 | B10 | ENIs(ctx) 전체 | 큰 VPC에서 무거움 | `IPZones(vpcIDs, ips)` — zone 없는 엔드포인트 IP만, 클러스터 VPC의 ENI만 |
@@ -53,7 +53,7 @@ SPEC_1.md를 검토하며 바꾼 결정과 패키지 간 계약. 과금 사실�
 - 외부 대상(RDS/ElastiCache/MSK)은 클러스터와 실제 통신하는지·볼륨을 모른다 → 과금 규칙이어도 최종 `low`, 금액 `?`.
 - 수신 바이트만(§8). 모든 바이트는 누군가 한 번 수신하므로 총합은 맞지만, 응답 바이트는 호출자 서비스로 귀속된다.
 - 공인 IP 헤어핀(pod가 internet-facing LB 호스트명 호출)은 AZ와 무관하게 과금되지만 Flow Logs 없이는 탐지 불가.
-- kube-proxy 대체(Cilium, EKS Auto Mode) 환경의 힌트 동작은 미검증 → kube-proxy DaemonSet이 없으면 zone-local 인정 안 함. 힌트를 설정한 서비스(`hints_configured`)는 `hints-unverified`(과금, low)로 확정 과금과 분리.
+- kube-proxy 대체(Cilium, EKS Auto Mode) 환경의 힌트 동작은 미검증 → kube-proxy DaemonSet이 없으면 zone-local 인정 안 함. 힌트를 설정한 서비스(`hints_configured`)는 `hints-unverified`(과금, low)로 확정 과금과 분리. 힌트를 쓰는 kube-proxy(`kube_proxy_hints`)로 확인됐는데 엔드포인트에 힌트가 없으면 kube-proxy가 전체로 분산하므로 `hints-withheld`(과금, high).
 
 ---
 
@@ -102,7 +102,7 @@ func Matches(m model.Match, f model.Facts) bool
 - `Confidence = MinLevel(rule.Confidence, evidence)` — evidence `k8s`/`aws` → high, `annotation` → medium
 - 매칭 규칙이 없으면 에러 (Validate가 catch-all을 보장하므로 발생하면 버그)
 
-`Matches`: 모든 비어있지 않은 조건 AND. StringSet은 `Has(fact)`, 빈 fact("")는 어떤 값과도 매치 안 함. *bool(`same_vpc`, `private_ip`, `topology_hints`, `zone_local`, `hints_configured`, `direct_ingress_backend`)은 nil이 아니면 일치해야 함. Route는 `string(f.Route)`.
+`Matches`: 모든 비어있지 않은 조건 AND. StringSet은 `Has(fact)`, 빈 fact("")는 어떤 값과도 매치 안 함. *bool(`same_vpc`, `private_ip`, `kube_proxy_hints`, `topology_hints`, `zone_local`, `hints_configured`, `direct_ingress_backend`)은 nil이 아니면 일치해야 함. Route는 `string(f.Route)`.
 
 `Validate`의 match 값 검사 (정확히 일치, 대소문자 구분). 다른 값은 `match.<key>: unknown value "<v>" (allowed: ...)` 에러. 키 목록은 `model.Match`의 json 태그를 reflect로 읽으므로, 허용 목록이 없는 StringSet 필드를 추가하면 모든 값이 거부되어 바로 드러난다.
 
@@ -183,7 +183,7 @@ func WithCost(ctx context.Context, s model.Snapshot, c CostCollector, month time
   `Ingress.Services` = 규칙·defaultBackend의 서비스 이름. 포트 이름이 `use-annotation`인 백엔드(AWS Load Balancer Controller 액션)는 서비스가 아니라 액션 이름이므로 `alb.ingress.kubernetes.io/actions.<name>` JSON의 `forwardConfig.targetGroups[].serviceName`과 레거시 최상위 `serviceName`(키 대소문자 무시)으로 바꾼다. 액션 이름 자체는 일반 백엔드가 같은 이름을 쓸 때만 남는다. annotation이 없거나 깨졌거나 fixed-response·ARN 전용 forward면 아무것도 추가하지 않는다. 가중치·blue/green·Argo Rollouts canary 구성이 여기에 해당. 정렬·중복 제거.
 - `WithAWS`(새 Snapshot 반환, 원본 불변): 노드 InstanceID → `InstanceVPCs` → `Subnets(vpcs)` → `LoadBalancers(vpcs)`; `RDSInstances`, `ElastiCacheClusters`, `MSKClusters(subnets)` 결과는 `VPCID ∈ vpcs`만 남김. zone 없는 ready 엔드포인트 IP → `IPZones(vpcs, ips)`. 호출별 실패는 `"L1: <what>: <err>"` 경고로 남기고 계속. VPC를 못 구하면 경고 + AWS=nil.
   - `LoadBalancers`는 부분 결과를 돌려준다: 속성·타겟그룹 조회에 실패한 ELBv2 LB는 빼고(그 경로는 annotation 근거로 폴백), v2 목록과 Classic 목록은 서로 독립적으로 실패한다. 실패마다 경고 한 줄 `L1: 로드밸런서: load balancer <name>: <api>: <err>`(errors.Join을 풀어서, 경고에 개행 없음). 전부 실패하면 빈 목록.
-- `WithVolume`: 쿼리 성공 후, PodName이 있는 ready 엔드포인트가 하나 이상인데 결과에 그 `ns/pod` 키가 **하나도** 없으면(빈 결과, 다른 클러스터, cAdvisor 미수집) Volume=nil + 경고 `L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터이거나 cAdvisor 메트릭 누락`. 결과는 L2 없는 출력(Layers에 L2 없음, 총액 `?`)으로 폴백. 일부만 겹치면 L2로 인정. 입력의 이전 Volume은 먼저 지운다.
+- `WithVolume`: 쿼리 성공 후, PodName이 있는 ready 엔드포인트가 하나 이상인데 결과에 그 `ns/pod` 키가 **하나도** 없으면(빈 결과, 다른 클러스터, cAdvisor 미수집, 수집 10분 미만이라 5분 스텝이 없음) Volume=nil + 경고 `L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터, cAdvisor 메트릭 누락, 또는 수집한 지 10분 미만`. 결과는 L2 없는 출력(Layers에 L2 없음, 총액 `?`)으로 폴백. 일부만 겹치면 L2로 인정. 입력의 이전 Volume은 먼저 지운다.
 - read-only 강제: `readonly.go`에 SDK 클라이언트별 인터페이스(메서드는 Describe*/List*/Get*만). `aws.go`·`ce.go`는 이 인터페이스 타입만 참조. `readonly_test.go`가 reflect로 모든 인터페이스 메서드 이름 접두어를 검사하고, 실제 SDK 클라이언트 타입이 인터페이스를 만족하는지 컴파일 타임 단언.
 - API 사용 (IAM과 1:1):
   - `ec2:DescribeInstances`(InstanceIds) → VpcId
@@ -196,8 +196,9 @@ func WithCost(ctx context.Context, s model.Snapshot, c CostCollector, month time
 - Prometheus: `GET <base>/api/v1/query?query=` 아래 쿼리, `status != "success"`면 에러, 결과 vector → `"ns/pod"` → float. cluster 라벨로 범위를 좁히지 않는다(§A-3).
   base URL의 basic-auth 자격증명은 퍼센트 인코딩해야 한다. `url.Parse` 실패는 고정 메시지 `prometheus: base URL is invalid (percent-encode credentials)`, 스킴 오류 메시지와 `http.NewRequest`/`hc.Do`의 `*url.Error`는 userinfo를 지운 URL(파싱 불가면 `<redacted>`)로 다시 만든다(`errors.Is` 체인 유지). 사용자 이름·비밀번호가 경고·`--json`·`--dump-fixture`에 남지 않는다.
   ```promql
-  sum by (namespace, pod) (max by (namespace, pod, interface) (rate(container_network_receive_bytes_total{pod!=""}[WINDOW])))
+  sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) (rate(container_network_receive_bytes_total{pod!=""}[5m]) and container_network_receive_bytes_total{pod!=""} offset 5m))[WINDOW:5m]))
   ```
+  WINDOW는 `^[0-9]+(ms|s|m|h|d|w|y)$`이고 5m 이상이어야 한다(아니면 요청 없이 에러 `prometheus: invalid window` / `window "<w>" is shorter than the 5m rate step`). 5분 전에도 샘플이 있던 스텝만 평균하므로 5~10분 안 된 pod는 결과에 없다(미측정 → 외삽).
 - CE: `GetCostAndUsage`, `TimePeriod` = month가 속한 달 1일 ~ 다음 달 1일, MONTHLY, `UnblendedCost`, Filter `Dimensions{Key: REGION, Values: [region]}`, GroupBy `DIMENSION USAGE_TYPE`. 그룹 키가 `DataTransfer-Regional-Bytes`로 **끝나는** 것만 합산(us-east-1은 접두어 없음, 그 외 `APN2-` 등 — 접두어 표를 하드코딩하지 않음). `-xAZ-In/Out-Bytes`(PrivateLink/TGW, $0)는 제외. NextPageToken 페이지 순회(페이지당 $0.01). `CostData.UsageType` = 합산한 사용 유형들을 `,`로 연결.
 
 ### C5. `internal/report`
@@ -220,7 +221,7 @@ func USD(v *float64, billable bool) string // "~$56", "~$0.40"(<$10은 소수 �
 - `Exposure: NONE`이면 2줄만: `Cluster: X   AZs: 1   Nodes: N` / `Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습니다.`
 - 헤더 `Cluster: X   Region: R   AZs: n   Nodes: n   Layers: L0+L1`, `Exposure: LIKELY`
 - 푸터 `Estimated total: ~$133/mo` 또는 `Estimated total: ? (L2 없음 — --prometheus-url)`, `Run \`crossaz explain <첫 BILLABLE 키>\` for rule details.`(BILLABLE 있을 때), VERIFY 블록(SPEC §9), `WARNINGS` 목록
-- `Explain` facts 줄: `az_spread zone_coverage topology_hints hints_configured zone_local direct_ingress_backend scheme target_type external_traffic_policy same_vpc private_ip traffic` (빈 문자열 사실은 생략, bool은 항상)
+- `Explain` facts 줄: `az_spread zone_coverage kube_proxy_hints topology_hints hints_configured zone_local direct_ingress_backend scheme target_type external_traffic_policy same_vpc private_ip traffic` (빈 문자열 사실은 생략, bool은 항상)
 - 터미널 제어 문자 차단: Table·Explain·Rules는 클러스터·AWS·규칙 파일에서 온 문자열(표 셀, 헤더, 클러스터 이름, 경고, VERIFY 값, explain 값·fix 명령 줄, SOURCES id·URL)의 `unicode.IsControl` 문자(ESC, BEL, CR, LF, TAB, C1 포함)를 `?`로 바꾼다. JSON은 `encoding/json` 이스케이프 그대로
 
 ### C6. `internal/scan`
@@ -234,9 +235,10 @@ func Anonymize(s model.Snapshot) model.Snapshot
 - `Analyze`: BuildPaths → Apply → Estimate → Local Zone 금액 생략 → Summarize. 추가 경고: 리전 요율 미내장(`RateFor` builtin=false && RateGB==0), Local/Wavelength Zone 노드(zone이 `<region><문자>` 형식이 아님) → `Local/Wavelength Zone 노드 발견(<zones>): 요율이 달라 해당 경로 금액 생략`.
   - Local Zone 금액 생략: billable이고 아직 low가 아닌 경로 중 Source 또는 Dest AZDist에 그 zone이 있으면 `CostPerMo=nil`, confidence low, note `Local/Wavelength Zone 포함: 요율이 달라 금액 생략`, `BytesPerMo`는 유지 → UNCERTAIN, 총액 제외. 새 슬라이스를 만든다. 비과금·이미 low인 경로는 그대로.
 - `Anonymize`: sha256 기반 결정적 치환(같은 입력 → 같은 출력, 조인 보존) — IP(사설 IPv4는 `10.x.y.z`, 그 외 IPv4는 198.18.0.0/15, IPv6는 fd00::/8), 노드 이름(EKS 노드 이름에 IP 포함), InstanceID, VPC/서브넷 ID, LB·타겟그룹 이름·DNS·Service/Ingress LBHostnames, IPZones 키.
+  - mirror pod(`OwnerKind == Node`, 이름이 `<pod>-<NodeName>`): 이름 끝의 노드 이름과 `OwnerName`을 노드 이름 치환값으로 바꾸고, 같은 이름을 쓰는 엔드포인트 `PodName`·Volume 키(`ns/pod`)도 함께 바꾼다(kubelet이 static pod를 노드 이름으로 명명하므로).
   - annotation은 classify가 읽는 키만 남긴다. `aws-load-balancer-attributes`와 `aws-load-balancer-target-group-attributes`는 `load_balancing.cross_zone.enabled` 쌍만 남긴다. `nginx.ingress.kubernetes.io/service-upstream`, `trafficDistribution` 필드도 유지(판정 입력).
   - 경고: 치환한 값을 먼저 문자열 치환한 뒤, `": "` 구분 조각이 3개 이상이면 `<조각1>: <조각2>: <redacted>`로 자른다(AWS/Kubernetes/HTTP 에러 원문의 계정 ID, principal ARN, 이메일, 홈 경로, LB 이름 제거). 조각 2개 이하는 그대로.
-  - 그대로 남는 것: 클러스터 이름, 네임스페이스·서비스·pod·Ingress·owner 이름, RDS/ElastiCache/MSK 식별자, IngressClass, Cost `actualUsd`, Volume 키(`ns/pod`).
+  - 그대로 남는 것: 클러스터 이름, 네임스페이스·서비스·pod·Ingress·owner 이름(mirror pod 제외), RDS/ElastiCache/MSK 식별자, IngressClass, Cost `actualUsd`, Volume 키(`ns/pod`, mirror pod 제외).
 
 ### C7. CLI (`cmd/crossaz`)
 
@@ -263,13 +265,14 @@ explain: 수집·분석 경고(`ScanResult.Warnings`)를 한 줄씩 `crossaz: wa
   - `spreadCallers`: route `nlb-cross-zone`/`nlb`는 노드 zone ∪ `Source.AZDist`(L1이면 LB zone), 그 외 모든 route는 노드 zone(§A-3)
 - `zone_coverage`: `destZones ⊇ Source.AZDist zones` → `full`; 아니면 unknown 있으면 `unknown`; 아니면 `partial`. Source.AZDist는 clusterip/headless·LB 미매칭이면 노드 zone, L1 보정 뒤에는 LB zone. `zone_local`과 힌트 판정은 노드 callers 그대로
 - `private_ip`: 모든 ready 엔드포인트 IP가 IPv4 사설 대역(10/8, 172.16/12, 192.168/16, 100.64/10)
+- `kube_proxy_hints` = 아래 1 && 2 (엔드포인트 힌트와 무관: `hints-unverified`/`hints-withheld` 구분용)
 - `topology_hints` (전부 만족):
   1. kube-proxy가 경로에 있음: route `clusterip`, 또는 LB 라우트(alb/clb/nlb-*)이면서 `target_type=instance` && `external_traffic_policy != Local`
   2. kube-proxy가 힌트를 씀: `KubeProxyVersion` minor ≥ 31, 또는 (minor ≥ 24 && 서비스 annotation `service.kubernetes.io/topology-mode` 또는 `service.kubernetes.io/topology-aware-hints`가 비어있지 않고 `disabled`가 아님). 버전 모름 → false
   3. ready 엔드포인트 ≥1개, **모두** `ForZones` 비어있지 않음
 - `Dest.HintedFor` (topology_hints일 때만): 호출자 zone → 그 zone으로 힌트된 ready 엔드포인트의 zone 분포. `topology-mode: Auto`는 균형을 위해 **다른 zone 엔드포인트를 힌트**할 수 있다
 - `zone_local`: (`topology_hints` && unknown 엔드포인트 없음 && `model.HintedCrossAZFraction(callers, dests, HintedFor) == 0` — 모든 호출자 zone이 같은 zone 엔드포인트로만 서비스됨) 또는 (route `clusterip` && `InternalTrafficPolicy == Local`)
-- `hints_configured` (서비스만): `spec.trafficDistribution != ""` 또는 `topology-mode`/`topology-aware-hints` annotation이 비어있지 않고 `disabled`가 아님. kube-proxy가 실제로 쓰는지와 무관(`hints-unverified` 규칙용)
+- `hints_configured` (서비스만): `spec.trafficDistribution != ""` 또는 `topology-mode`/`topology-aware-hints` annotation이 비어있지 않고 `disabled`가 아님. kube-proxy가 실제로 쓰는지와 무관(`hints-unverified`·`hints-withheld` 규칙용)
 - `direct_ingress_backend` (서비스만): 같은 네임스페이스의 **ALB가 아닌** Ingress가 이 서비스를 가리키고 그 Ingress에 `nginx.ingress.kubernetes.io/service-upstream: "true"`가 없음. 그런 컨트롤러는 EndpointSlice pod IP로 직접 연결해 kube-proxy 힌트를 우회한다(billing-rules §6.4 조건 6, §6.7)
 
 ### 서비스 (ExternalName, ready 엔드포인트 0개 제외)

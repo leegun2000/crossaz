@@ -164,6 +164,7 @@ func Matches(m model.Match, f model.Facts) bool {
 		matchSet(m.Evidence, f.Evidence) &&
 		matchBool(m.SameVPC, f.SameVPC) &&
 		matchBool(m.PrivateIP, f.PrivateIP) &&
+		matchBool(m.KubeProxyHints, f.KubeProxyHints) &&
 		matchBool(m.TopologyHints, f.TopologyHints) &&
 		matchBool(m.ZoneLocal, f.ZoneLocal) &&
 		matchBool(m.HintsConfigured, f.HintsConfigured) &&

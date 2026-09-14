@@ -76,6 +76,7 @@ func factsLine(f model.Facts) string {
 	pairs := []struct{ key, value string }{
 		{"az_spread", f.AZSpread},
 		{"zone_coverage", f.ZoneCoverage},
+		{"kube_proxy_hints", strconv.FormatBool(f.KubeProxyHints)},
 		{"topology_hints", strconv.FormatBool(f.TopologyHints)},
 		{"hints_configured", strconv.FormatBool(f.HintsConfigured)},
 		{"zone_local", strconv.FormatBool(f.ZoneLocal)},

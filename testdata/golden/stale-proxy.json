@@ -1,0 +1,124 @@
+{
+  "cluster": "stale-d",
+  "region": "ap-northeast-2",
+  "zones": [
+    "ap-northeast-2a",
+    "ap-northeast-2b",
+    "ap-northeast-2c"
+  ],
+  "nodeCount": 3,
+  "layers": [
+    "L0"
+  ],
+  "exposure": "likely",
+  "paths": [
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "notify/worker",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "clusterip",
+      "facts": {
+        "route": "clusterip",
+        "targetKind": "service",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "kubeProxyHints": true,
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "k8s",
+        "hintsConfigured": true,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "hints-withheld",
+      "reason": "zone 라우팅을 설정했고 kube-proxy도 힌트를 쓰는 버전이지만 EndpointSlice에 힌트가 없음(topology-mode Auto가 AZ별 엔드포인트 부족·과부하 기준으로 힌트를 보류하는 경우 등). 힌트 없는 엔드포인트가 있으면 kube-proxy는 모든 엔드포인트로 분산",
+      "sourceUrl": "https://kubernetes.io/docs/concepts/services-networking/topology-aware-routing/",
+      "rateGb": 0.02,
+      "ruleConfidence": "high",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "high",
+      "confidenceNote": "L2 없음: --prometheus-url로 볼륨 추정",
+      "fix": {
+        "kind": "PreferClose",
+        "description": "topology-mode annotation이 trafficDistribution보다 우선하므로 annotation을 지우고 trafficDistribution 설정(AZ별 엔드포인트 수 조건 없음). Auto를 유지하려면 AZ마다 엔드포인트를 늘릴 것 — 보류 이유는 kubectl get events --field-selector reason=TopologyAwareHintsDisabled",
+        "command": "kubectl annotate svc -n notify worker service.kubernetes.io/topology-mode- service.kubernetes.io/topology-aware-hints-\nkubectl patch svc -n notify worker --type=merge \\\n  -p '{\"spec\":{\"trafficDistribution\":\"PreferClose\"}}'"
+      }
+    }
+  ],
+  "excluded": [],
+  "uncertain": [
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "search/api",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "clusterip",
+      "facts": {
+        "route": "clusterip",
+        "targetKind": "service",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "kubeProxyHints": false,
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "k8s",
+        "hintsConfigured": true,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "hints-unverified",
+      "reason": "trafficDistribution/topology-mode가 설정돼 있지만 kube-proxy 버전을 확인할 수 없거나(대체 프록시 포함) 이 서비스의 힌트를 쓴다고 확인된 버전이 아니어서 zone-local 여부를 확인할 수 없음",
+      "sourceUrl": "https://kubernetes.io/docs/concepts/services-networking/topology-aware-routing/",
+      "rateGb": 0.02,
+      "ruleConfidence": "low",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "low",
+      "confidenceNote": "L2 없음: --prometheus-url로 볼륨 추정"
+    }
+  ],
+  "hidden": 0,
+  "thresholdUsd": 1,
+  "estimatedTotalUsd": null,
+  "warnings": [
+    "L1: AWS 자격증명을 찾지 못해 L0만 실행"
+  ]
+}

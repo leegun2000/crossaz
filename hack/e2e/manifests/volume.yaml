@@ -1,0 +1,64 @@
+# L2: a generator in zone b streams a known byte rate over one TCP connection to a sink in zone a.
+# The generator logs "sent_bytes=<n> elapsed_s=<s>" to stderr after every chunk, so the test can compute the
+# true rate over the same window crossaz asks Prometheus for. Busybox only (official image).
+apiVersion: v1
+kind: Namespace
+metadata: {name: volume}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: sink, namespace: volume}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: sink}}
+  template:
+    metadata: {labels: {app: sink}}
+    spec:
+      terminationGracePeriodSeconds: 1
+      nodeSelector: {topology.kubernetes.io/zone: ap-northeast-2a}
+      containers:
+        - name: sink
+          image: docker.io/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+          command: [sh, -c, 'while true; do nc -l -p 9000 > /dev/null; done']
+          ports: [{containerPort: 9000}]
+          resources: {requests: {cpu: 50m, memory: 8Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: sink, namespace: volume}
+spec:
+  selector: {app: sink}
+  ports: [{port: 9000}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: generator, namespace: volume}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: generator}}
+  template:
+    metadata: {labels: {app: generator}}
+    spec:
+      terminationGracePeriodSeconds: 1
+      nodeSelector: {topology.kubernetes.io/zone: ap-northeast-2b}
+      containers:
+        - name: generator
+          image: docker.io/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+          env: [{name: CHUNK_MB, value: "6"}]
+          # About CHUNK_MB MB/s: one chunk, then a 1 s pause. dd dies with the pipe when nc exits, so the
+          # container restarts instead of logging bytes that were never sent.
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z -w 2 sink 9000; do sleep 1; done
+              sleep 1 # the probe ends the sink's listener; let it re-listen
+              start=$(date +%s)
+              sent=0
+              while true; do
+                dd if=/dev/zero bs=1048576 count="$CHUNK_MB" 2>/dev/null || exit 1
+                sent=$((sent + CHUNK_MB * 1048576))
+                echo "sent_bytes=$sent elapsed_s=$(($(date +%s) - start))" >&2
+                sleep 1
+              done | nc sink 9000
+          resources: {requests: {cpu: 50m, memory: 8Mi}}
