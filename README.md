@@ -384,3 +384,23 @@ crossaz scan --fixture testdata/fixtures/x.json          # 클러스터 없이 �
 `--dump-fixture`는 IP·노드 이름·인스턴스 ID·VPC/서브넷 ID·LB와 타겟그룹 이름/DNS를 sha256 기반으로 결정적으로 치환합니다(조인 보존, 사설/공인 IPv4·IPv6 구분 유지). 판정에 쓰지 않는 annotation은 버리고(LB/TG 속성 annotation은 cross-zone 값만 남김), 경고는 치환한 값을 바꾼 뒤 `<레이어>: <대상>: <redacted>`까지만 남겨 AWS/Kubernetes/HTTP 에러 원문(계정 ID, principal ARN, 이메일, 홈 경로 등)을 지웁니다. **클러스터 이름, 네임스페이스·서비스·pod·Ingress·owner 이름, RDS/ElastiCache/MSK 식별자, Cost Explorer `actualUsd`는 그대로 남으므로** 커밋 전에 확인하세요.
 
 설계와 패키지 계약: [`docs/design.md`](docs/design.md). 과금 규칙 근거: [`docs/billing-rules.md`](docs/billing-rules.md).
+
+### 릴리스
+
+`v*` 태그를 푸시하면 [`.github/workflows/release.yml`](.github/workflows/release.yml)이 `go vet`·`go test -race`를 통과시킨 뒤 GoReleaser로 linux/darwin/windows × amd64/arm64 바이너리, `checksums.txt`, GitHub Release를 만듭니다.
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+| 배포 채널 | 준비물 | 없으면 |
+|---|---|---|
+| GitHub Release | 없음 (기본 `GITHUB_TOKEN`) | — |
+| Homebrew cask | `leegun2000/homebrew-tap` 저장소 + 그 저장소에 쓰기 권한이 있는 토큰을 시크릿 `HOMEBREW_TAP_GITHUB_TOKEN`으로 등록 | cask 푸시만 건너뜀 |
+| krew | 첫 버전은 [krew-index](https://github.com/kubernetes-sigs/krew-index)에 수동 PR로 등록, 이후 저장소 변수 `KREW_RELEASE=true` | krew 단계 건너뜀 |
+
+저장소가 private인 동안에는 릴리스 에셋이 인증 없이 받아지지 않으므로 Homebrew·krew 설치는 public 전환 후에 동작합니다. 로컬 확인: `goreleaser release --snapshot --clean`.
+
+## 라이선스
+
+[MIT](LICENSE)

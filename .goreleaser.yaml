@@ -52,11 +52,14 @@ homebrew_casks:
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
+    # Skip the tap push until the HOMEBREW_TAP_GITHUB_TOKEN secret exists
+    # (Actions passes a missing secret as an empty string, so test for empty, not unset).
+    skip_upload: '{{ if eq (envOrDefault "HOMEBREW_TAP_GITHUB_TOKEN" "") "" }}true{{ end }}'
     repository:
       owner: leegun2000
       name: homebrew-tap
       # The default GITHUB_TOKEN cannot push to another repository.
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+      token: '{{ envOrDefault "HOMEBREW_TAP_GITHUB_TOKEN" "" }}'
     hooks:
       post:
         # Binaries are not notarized; drop the quarantine flag so Gatekeeper lets them run.
