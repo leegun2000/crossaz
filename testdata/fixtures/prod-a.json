@@ -1,0 +1,2038 @@
+{
+  "cluster": "prod-a",
+  "region": "ap-northeast-2",
+  "serverVersion": "v1.33.4-eks-3b2c1f7",
+  "kubeProxyVersion": "v1.33.3-eksbuild.2",
+  "nodes": [
+    {
+      "name": "node-d027e50c7dda",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-c8595f37c979431b4"
+    },
+    {
+      "name": "node-387727d706a8",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-4dcd4d2c5b069bfad"
+    },
+    {
+      "name": "node-8d1927a5c2e1",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-a8f7d51e43b5cffeb"
+    },
+    {
+      "name": "node-93ac58ee2d7c",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-7b16ad9aab909bef6"
+    },
+    {
+      "name": "node-9b8c41200ca4",
+      "zone": "ap-northeast-2b",
+      "region": "ap-northeast-2",
+      "instanceId": "i-ce578b90bef3102be"
+    },
+    {
+      "name": "node-437f608425bb",
+      "zone": "ap-northeast-2b",
+      "region": "ap-northeast-2",
+      "instanceId": "i-ef79aea1cf9b242b8"
+    },
+    {
+      "name": "node-9e6e18346a12",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-f5a6b8848e3be4d75"
+    },
+    {
+      "name": "node-47838d4bed41",
+      "zone": "ap-northeast-2b",
+      "region": "ap-northeast-2",
+      "instanceId": "i-ce021eba4ea87b51a"
+    },
+    {
+      "name": "node-2fb343c7330f",
+      "zone": "ap-northeast-2b",
+      "region": "ap-northeast-2",
+      "instanceId": "i-665d74a701174dfbf"
+    },
+    {
+      "name": "node-b372a41f63ad",
+      "zone": "ap-northeast-2b",
+      "region": "ap-northeast-2",
+      "instanceId": "i-d5f975b0c9948570a"
+    },
+    {
+      "name": "node-b38dcf265d06",
+      "zone": "ap-northeast-2b",
+      "region": "ap-northeast-2",
+      "instanceId": "i-5343a63a0ffea89af"
+    },
+    {
+      "name": "node-3f67311a85f2",
+      "zone": "ap-northeast-2b",
+      "region": "ap-northeast-2",
+      "instanceId": "i-ff4576861664bce17"
+    },
+    {
+      "name": "node-b76cebb90206",
+      "zone": "ap-northeast-2b",
+      "region": "ap-northeast-2",
+      "instanceId": "i-6c117ee2dc833bbff"
+    },
+    {
+      "name": "node-be4df004692a",
+      "zone": "ap-northeast-2c",
+      "region": "ap-northeast-2",
+      "instanceId": "i-c8bc7c472f6fac124"
+    },
+    {
+      "name": "node-3cf5d17e14f7",
+      "zone": "ap-northeast-2c",
+      "region": "ap-northeast-2",
+      "instanceId": "i-0e37a0a2743661e1c"
+    },
+    {
+      "name": "node-ddfcb2ba22a7",
+      "zone": "ap-northeast-2c",
+      "region": "ap-northeast-2",
+      "instanceId": "i-51c3b97ff0e30a774"
+    },
+    {
+      "name": "node-eff9e8af600b",
+      "zone": "ap-northeast-2c",
+      "region": "ap-northeast-2",
+      "instanceId": "i-ce0f846307ed0dae5"
+    },
+    {
+      "name": "node-18471212446e",
+      "zone": "ap-northeast-2c",
+      "region": "ap-northeast-2",
+      "instanceId": "i-d72eb2a91b2397040"
+    },
+    {
+      "name": "node-e6d04046b563",
+      "zone": "ap-northeast-2c",
+      "region": "ap-northeast-2",
+      "instanceId": "i-f29a55a7b5f84acfc"
+    },
+    {
+      "name": "node-9430298e3bf6",
+      "zone": "ap-northeast-2c",
+      "region": "ap-northeast-2",
+      "instanceId": "i-23ce4d29b6113ee88"
+    },
+    {
+      "name": "node-db5898acc69e",
+      "zone": "ap-northeast-2c",
+      "region": "ap-northeast-2",
+      "instanceId": "i-0f8d54a53ae276c05"
+    },
+    {
+      "name": "node-d53ee098ff97",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-af1889d35ea8f8220"
+    },
+    {
+      "name": "node-a08f2701621c",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-f718f9e8da00d942d"
+    },
+    {
+      "name": "node-5b29c32ee2fb",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-6054e7ea9aae67542"
+    }
+  ],
+  "services": [
+    {
+      "namespace": "admin",
+      "name": "console",
+      "type": "ClusterIP",
+      "clusterIP": "10.13.230.64",
+      "endpoints": [
+        {
+          "ip": "10.197.205.115",
+          "podName": "console-cb067ef6e-89d72",
+          "nodeName": "node-9b8c41200ca4",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.27.212.40",
+          "podName": "console-cb067ef6e-schmp",
+          "nodeName": "node-9430298e3bf6",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "api",
+      "name": "internal",
+      "type": "NodePort",
+      "clusterIP": "10.124.165.106",
+      "externalTrafficPolicy": "Local",
+      "endpoints": [
+        {
+          "ip": "10.235.146.229",
+          "podName": "internal-4bcda7b8d-j9k7f",
+          "nodeName": "node-d53ee098ff97",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.67.51.185",
+          "podName": "internal-4bcda7b8d-bpn99",
+          "nodeName": "node-b76cebb90206",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.57.135.1",
+          "podName": "internal-4bcda7b8d-jshzl",
+          "nodeName": "node-be4df004692a",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "auth",
+      "name": "token",
+      "type": "ClusterIP",
+      "clusterIP": "10.148.166.172",
+      "endpoints": [
+        {
+          "ip": "10.248.181.91",
+          "podName": "token-bbdf61981-tjf6g",
+          "nodeName": "node-47838d4bed41",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.90.86.22",
+          "podName": "token-bbdf61981-69t4b",
+          "nodeName": "node-3cf5d17e14f7",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.50.235.37",
+          "podName": "token-bbdf61981-4dk45",
+          "nodeName": "node-8d1927a5c2e1",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "cache",
+      "name": "redis",
+      "type": "ClusterIP",
+      "clusterIP": "10.114.158.112",
+      "endpoints": [
+        {
+          "ip": "10.132.56.213",
+          "podName": "redis-0",
+          "nodeName": "node-387727d706a8",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.2.60.241",
+          "podName": "redis-1",
+          "nodeName": "node-8d1927a5c2e1",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.202.246.83",
+          "podName": "redis-2",
+          "nodeName": "node-9e6e18346a12",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "default",
+      "name": "kubernetes",
+      "type": "ClusterIP",
+      "clusterIP": "10.126.28.103",
+      "endpoints": [
+        {
+          "ip": "10.197.236.207",
+          "ready": true
+        },
+        {
+          "ip": "10.243.161.196",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "edge",
+      "name": "gateway",
+      "type": "LoadBalancer",
+      "clusterIP": "10.190.145.101",
+      "annotations": {
+        "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type": "ip",
+        "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing"
+      },
+      "loadBalancerClass": "service.k8s.aws/nlb",
+      "externalTrafficPolicy": "Cluster",
+      "internalTrafficPolicy": "Cluster",
+      "lbHostnames": [
+        "286ebe2299a9db17.elb.amazonaws.com"
+      ],
+      "endpoints": [
+        {
+          "ip": "10.215.75.90",
+          "podName": "gateway-0d217525c-spk88",
+          "nodeName": "node-387727d706a8",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.172.228.164",
+          "podName": "gateway-0d217525c-5lgjj",
+          "nodeName": "node-b372a41f63ad",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.42.67.20",
+          "podName": "gateway-0d217525c-h9d4t",
+          "nodeName": "node-ddfcb2ba22a7",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "edge",
+      "name": "tcp-ingest",
+      "type": "LoadBalancer",
+      "clusterIP": "10.246.171.29",
+      "annotations": {
+        "service.beta.kubernetes.io/aws-load-balancer-type": "nlb"
+      },
+      "externalTrafficPolicy": "Local",
+      "lbHostnames": [
+        "1925fd6a1619628a.elb.amazonaws.com"
+      ],
+      "endpoints": [
+        {
+          "ip": "10.217.55.70",
+          "podName": "tcp-ingest-538abed8b-mm55d",
+          "nodeName": "node-47838d4bed41",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.1.212.106",
+          "podName": "tcp-ingest-538abed8b-z2z4r",
+          "nodeName": "node-3cf5d17e14f7",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.173.125.208",
+          "podName": "tcp-ingest-538abed8b-9pq9z",
+          "nodeName": "node-8d1927a5c2e1",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "events",
+      "name": "kafka",
+      "type": "ClusterIP",
+      "clusterIP": "None",
+      "endpoints": [
+        {
+          "ip": "10.144.241.105",
+          "podName": "kafka-0",
+          "nodeName": "node-a08f2701621c",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.151.254.47",
+          "podName": "kafka-1",
+          "nodeName": "node-2fb343c7330f",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.12.237.171",
+          "podName": "kafka-2",
+          "nodeName": "node-eff9e8af600b",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "grpc",
+      "name": "ledger-api",
+      "type": "LoadBalancer",
+      "clusterIP": "10.4.92.38",
+      "annotations": {
+        "service.beta.kubernetes.io/aws-load-balancer-attributes": "load_balancing.cross_zone.enabled=false",
+        "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type": "ip",
+        "service.beta.kubernetes.io/aws-load-balancer-scheme": "internal"
+      },
+      "loadBalancerClass": "service.k8s.aws/nlb",
+      "externalTrafficPolicy": "Cluster",
+      "lbHostnames": [
+        "29b35edd1d77d613.elb.amazonaws.com"
+      ],
+      "endpoints": [
+        {
+          "ip": "10.178.155.240",
+          "podName": "ledger-api-68afc769a-qw44m",
+          "nodeName": "node-3f67311a85f2",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.44.205.170",
+          "podName": "ledger-api-68afc769a-cjbrt",
+          "nodeName": "node-18471212446e",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.37.231.163",
+          "podName": "ledger-api-68afc769a-phj4b",
+          "nodeName": "node-93ac58ee2d7c",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "ingress",
+      "name": "web",
+      "type": "ClusterIP",
+      "clusterIP": "10.97.103.185",
+      "endpoints": [
+        {
+          "ip": "10.9.42.60",
+          "podName": "web-60c369a64-dkfq4",
+          "nodeName": "node-9e6e18346a12",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.227.47.51",
+          "podName": "web-60c369a64-j7wdk",
+          "nodeName": "node-d027e50c7dda",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.61.107.78",
+          "podName": "web-60c369a64-8blnf",
+          "nodeName": "node-9b8c41200ca4",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.226.105.98",
+          "podName": "web-60c369a64-hgdsm",
+          "nodeName": "node-437f608425bb",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.121.215.134",
+          "podName": "web-60c369a64-sqgs9",
+          "nodeName": "node-9430298e3bf6",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.178.171.106",
+          "podName": "web-60c369a64-2xz8d",
+          "nodeName": "node-e6d04046b563",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "kube-system",
+      "name": "kube-dns",
+      "type": "ClusterIP",
+      "clusterIP": "10.62.196.3",
+      "endpoints": [
+        {
+          "ip": "10.117.107.242",
+          "podName": "coredns-39084811d-6vkds",
+          "nodeName": "node-a08f2701621c",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.191.236.14",
+          "podName": "coredns-39084811d-m5hjq",
+          "nodeName": "node-47838d4bed41",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "legacy",
+      "name": "billing-portal",
+      "type": "LoadBalancer",
+      "clusterIP": "10.96.249.75",
+      "externalTrafficPolicy": "Local",
+      "lbHostnames": [
+        "4492f7b32ab341d6.elb.amazonaws.com"
+      ],
+      "endpoints": [
+        {
+          "ip": "10.69.198.33",
+          "podName": "billing-portal-cde0518aa-glf9l",
+          "nodeName": "node-b372a41f63ad",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.52.160.254",
+          "podName": "billing-portal-cde0518aa-bgkcn",
+          "nodeName": "node-ddfcb2ba22a7",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.117.183.107",
+          "podName": "billing-portal-cde0518aa-8m2bl",
+          "nodeName": "node-387727d706a8",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter",
+      "type": "ClusterIP",
+      "clusterIP": "10.221.153.132",
+      "endpoints": [
+        {
+          "ip": "10.147.56.21",
+          "podName": "node-exporter-n6kbr",
+          "nodeName": "node-d027e50c7dda",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.85.204.163",
+          "podName": "node-exporter-ss8zw",
+          "nodeName": "node-387727d706a8",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.182.98.53",
+          "podName": "node-exporter-lmtxw",
+          "nodeName": "node-8d1927a5c2e1",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.11.91.255",
+          "podName": "node-exporter-bc9pb",
+          "nodeName": "node-93ac58ee2d7c",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.214.148.8",
+          "podName": "node-exporter-swlr5",
+          "nodeName": "node-9b8c41200ca4",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.72.139.120",
+          "podName": "node-exporter-hsshp",
+          "nodeName": "node-437f608425bb",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.24.130.30",
+          "podName": "node-exporter-phhfl",
+          "nodeName": "node-9e6e18346a12",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.245.193.187",
+          "podName": "node-exporter-qg2mg",
+          "nodeName": "node-47838d4bed41",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.155.43.247",
+          "podName": "node-exporter-vm4z5",
+          "nodeName": "node-2fb343c7330f",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.154.152.218",
+          "podName": "node-exporter-zmhzt",
+          "nodeName": "node-b372a41f63ad",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.51.7.208",
+          "podName": "node-exporter-2lsqz",
+          "nodeName": "node-b38dcf265d06",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.211.86.45",
+          "podName": "node-exporter-7slhq",
+          "nodeName": "node-3f67311a85f2",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.11.223.109",
+          "podName": "node-exporter-nx2db",
+          "nodeName": "node-b76cebb90206",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.148.76.101",
+          "podName": "node-exporter-v6gdd",
+          "nodeName": "node-be4df004692a",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.16.240.6",
+          "podName": "node-exporter-h5wbs",
+          "nodeName": "node-3cf5d17e14f7",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.116.221.146",
+          "podName": "node-exporter-l8sqk",
+          "nodeName": "node-ddfcb2ba22a7",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.30.97.238",
+          "podName": "node-exporter-c7sb6",
+          "nodeName": "node-eff9e8af600b",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.146.164.205",
+          "podName": "node-exporter-vwv4t",
+          "nodeName": "node-18471212446e",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.182.77.8",
+          "podName": "node-exporter-s69bp",
+          "nodeName": "node-e6d04046b563",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.127.248.49",
+          "podName": "node-exporter-mdtv4",
+          "nodeName": "node-9430298e3bf6",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.110.87.225",
+          "podName": "node-exporter-px68m",
+          "nodeName": "node-db5898acc69e",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.131.62.134",
+          "podName": "node-exporter-llx4l",
+          "nodeName": "node-d53ee098ff97",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.62.53.253",
+          "podName": "node-exporter-cqkwc",
+          "nodeName": "node-a08f2701621c",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.35.255.69",
+          "podName": "node-exporter-4vp6c",
+          "nodeName": "node-5b29c32ee2fb",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "monitoring",
+      "name": "prometheus-server",
+      "type": "ClusterIP",
+      "clusterIP": "10.157.205.58",
+      "endpoints": [
+        {
+          "ip": "10.230.6.134",
+          "podName": "prometheus-server-0",
+          "nodeName": "node-b76cebb90206",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "notify",
+      "name": "worker",
+      "type": "ClusterIP",
+      "clusterIP": "10.57.234.227",
+      "endpoints": [
+        {
+          "ip": "10.87.133.83",
+          "podName": "worker-168bd5b01-9pwsj",
+          "nodeName": "node-9e6e18346a12",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.166.44.158",
+          "podName": "worker-168bd5b01-52484",
+          "nodeName": "node-437f608425bb",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.102.197.105",
+          "podName": "worker-168bd5b01-jr84b",
+          "nodeName": "node-e6d04046b563",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "orders",
+      "name": "api",
+      "type": "ClusterIP",
+      "clusterIP": "10.93.106.230",
+      "trafficDistribution": "PreferClose",
+      "endpoints": [
+        {
+          "ip": "10.18.219.224",
+          "podName": "api-376abf73d-mrtch",
+          "nodeName": "node-d027e50c7dda",
+          "zone": "ap-northeast-2a",
+          "ready": true,
+          "forZones": [
+            "ap-northeast-2a"
+          ]
+        },
+        {
+          "ip": "10.148.74.4",
+          "podName": "api-376abf73d-pdtg2",
+          "nodeName": "node-b38dcf265d06",
+          "zone": "ap-northeast-2b",
+          "ready": true,
+          "forZones": [
+            "ap-northeast-2b"
+          ]
+        },
+        {
+          "ip": "10.184.103.128",
+          "podName": "api-376abf73d-6q8l8",
+          "nodeName": "node-b76cebb90206",
+          "zone": "ap-northeast-2b",
+          "ready": true,
+          "forZones": [
+            "ap-northeast-2b"
+          ]
+        },
+        {
+          "ip": "10.214.200.143",
+          "podName": "api-376abf73d-ddgt9",
+          "nodeName": "node-be4df004692a",
+          "zone": "ap-northeast-2c",
+          "ready": true,
+          "forZones": [
+            "ap-northeast-2c"
+          ]
+        },
+        {
+          "ip": "10.69.100.28",
+          "podName": "api-376abf73d-tkmlc",
+          "nodeName": "node-db5898acc69e",
+          "zone": "ap-northeast-2c",
+          "ready": true,
+          "forZones": [
+            "ap-northeast-2c"
+          ]
+        },
+        {
+          "ip": "10.197.226.7",
+          "podName": "api-376abf73d-7t6bf",
+          "nodeName": "node-d53ee098ff97",
+          "zone": "ap-northeast-2a",
+          "ready": true,
+          "forZones": [
+            "ap-northeast-2a"
+          ]
+        }
+      ]
+    },
+    {
+      "namespace": "payments",
+      "name": "api",
+      "type": "ClusterIP",
+      "clusterIP": "10.68.225.129",
+      "endpoints": [
+        {
+          "ip": "10.56.7.165",
+          "podName": "api-bf51c9acf-2tjc7",
+          "nodeName": "node-5b29c32ee2fb",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.15.223.23",
+          "podName": "api-bf51c9acf-lndxd",
+          "nodeName": "node-437f608425bb",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.90.216.121",
+          "podName": "api-bf51c9acf-fbj9v",
+          "nodeName": "node-9b8c41200ca4",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.198.48.226",
+          "podName": "api-bf51c9acf-tpln7",
+          "nodeName": "node-e6d04046b563",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.14.1.92",
+          "podName": "api-bf51c9acf-8fnjh",
+          "nodeName": "node-9430298e3bf6",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.120.251.11",
+          "podName": "api-bf51c9acf-m8pgv",
+          "nodeName": "node-93ac58ee2d7c",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "search",
+      "name": "indexer",
+      "type": "ClusterIP",
+      "clusterIP": "10.85.50.149",
+      "endpoints": [
+        {
+          "ip": "10.96.73.168",
+          "podName": "indexer-4923eb794-hwbkt",
+          "nodeName": "node-93ac58ee2d7c",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.35.66.163",
+          "podName": "indexer-4923eb794-f44jz",
+          "nodeName": "node-3f67311a85f2",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.250.3.157",
+          "podName": "indexer-4923eb794-72b8g",
+          "nodeName": "node-18471212446e",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.167.103.211",
+          "podName": "indexer-4923eb794-286mp",
+          "nodeName": "node-5b29c32ee2fb",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "shop",
+      "name": "storefront",
+      "type": "NodePort",
+      "clusterIP": "10.164.241.239",
+      "externalTrafficPolicy": "Cluster",
+      "endpoints": [
+        {
+          "ip": "10.89.254.56",
+          "podName": "storefront-3bbd62c89-4clcz",
+          "nodeName": "node-5b29c32ee2fb",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.16.123.27",
+          "podName": "storefront-3bbd62c89-vkm8n",
+          "nodeName": "node-b38dcf265d06",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.44.187.214",
+          "podName": "storefront-3bbd62c89-9jbvv",
+          "nodeName": "node-2fb343c7330f",
+          "zone": "ap-northeast-2b",
+          "ready": true
+        },
+        {
+          "ip": "10.167.126.99",
+          "podName": "storefront-3bbd62c89-sqjgs",
+          "nodeName": "node-db5898acc69e",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.233.5.16",
+          "podName": "storefront-3bbd62c89-48jz6",
+          "nodeName": "node-eff9e8af600b",
+          "zone": "ap-northeast-2c",
+          "ready": true
+        },
+        {
+          "ip": "10.154.220.76",
+          "podName": "storefront-3bbd62c89-94rfv",
+          "nodeName": "node-a08f2701621c",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    }
+  ],
+  "pods": [
+    {
+      "namespace": "admin",
+      "name": "console-cb067ef6e-89d72",
+      "nodeName": "node-9b8c41200ca4",
+      "ip": "10.197.205.115",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "console-cb067ef6e"
+    },
+    {
+      "namespace": "admin",
+      "name": "console-cb067ef6e-schmp",
+      "nodeName": "node-9430298e3bf6",
+      "ip": "10.27.212.40",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "console-cb067ef6e"
+    },
+    {
+      "namespace": "api",
+      "name": "internal-4bcda7b8d-bpn99",
+      "nodeName": "node-b76cebb90206",
+      "ip": "10.67.51.185",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "internal-4bcda7b8d"
+    },
+    {
+      "namespace": "api",
+      "name": "internal-4bcda7b8d-j9k7f",
+      "nodeName": "node-d53ee098ff97",
+      "ip": "10.235.146.229",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "internal-4bcda7b8d"
+    },
+    {
+      "namespace": "api",
+      "name": "internal-4bcda7b8d-jshzl",
+      "nodeName": "node-be4df004692a",
+      "ip": "10.57.135.1",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "internal-4bcda7b8d"
+    },
+    {
+      "namespace": "auth",
+      "name": "token-bbdf61981-4dk45",
+      "nodeName": "node-8d1927a5c2e1",
+      "ip": "10.50.235.37",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "token-bbdf61981"
+    },
+    {
+      "namespace": "auth",
+      "name": "token-bbdf61981-69t4b",
+      "nodeName": "node-3cf5d17e14f7",
+      "ip": "10.90.86.22",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "token-bbdf61981"
+    },
+    {
+      "namespace": "auth",
+      "name": "token-bbdf61981-tjf6g",
+      "nodeName": "node-47838d4bed41",
+      "ip": "10.248.181.91",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "token-bbdf61981"
+    },
+    {
+      "namespace": "cache",
+      "name": "redis-0",
+      "nodeName": "node-387727d706a8",
+      "ip": "10.132.56.213",
+      "ownerKind": "StatefulSet",
+      "ownerName": "redis"
+    },
+    {
+      "namespace": "cache",
+      "name": "redis-1",
+      "nodeName": "node-8d1927a5c2e1",
+      "ip": "10.2.60.241",
+      "ownerKind": "StatefulSet",
+      "ownerName": "redis"
+    },
+    {
+      "namespace": "cache",
+      "name": "redis-2",
+      "nodeName": "node-9e6e18346a12",
+      "ip": "10.202.246.83",
+      "ownerKind": "StatefulSet",
+      "ownerName": "redis"
+    },
+    {
+      "namespace": "edge",
+      "name": "gateway-0d217525c-5lgjj",
+      "nodeName": "node-b372a41f63ad",
+      "ip": "10.172.228.164",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "gateway-0d217525c"
+    },
+    {
+      "namespace": "edge",
+      "name": "gateway-0d217525c-h9d4t",
+      "nodeName": "node-ddfcb2ba22a7",
+      "ip": "10.42.67.20",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "gateway-0d217525c"
+    },
+    {
+      "namespace": "edge",
+      "name": "gateway-0d217525c-spk88",
+      "nodeName": "node-387727d706a8",
+      "ip": "10.215.75.90",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "gateway-0d217525c"
+    },
+    {
+      "namespace": "edge",
+      "name": "tcp-ingest-538abed8b-9pq9z",
+      "nodeName": "node-8d1927a5c2e1",
+      "ip": "10.173.125.208",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "tcp-ingest-538abed8b"
+    },
+    {
+      "namespace": "edge",
+      "name": "tcp-ingest-538abed8b-mm55d",
+      "nodeName": "node-47838d4bed41",
+      "ip": "10.217.55.70",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "tcp-ingest-538abed8b"
+    },
+    {
+      "namespace": "edge",
+      "name": "tcp-ingest-538abed8b-z2z4r",
+      "nodeName": "node-3cf5d17e14f7",
+      "ip": "10.1.212.106",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "tcp-ingest-538abed8b"
+    },
+    {
+      "namespace": "events",
+      "name": "kafka-0",
+      "nodeName": "node-a08f2701621c",
+      "ip": "10.144.241.105",
+      "ownerKind": "StatefulSet",
+      "ownerName": "kafka"
+    },
+    {
+      "namespace": "events",
+      "name": "kafka-1",
+      "nodeName": "node-2fb343c7330f",
+      "ip": "10.151.254.47",
+      "ownerKind": "StatefulSet",
+      "ownerName": "kafka"
+    },
+    {
+      "namespace": "events",
+      "name": "kafka-2",
+      "nodeName": "node-eff9e8af600b",
+      "ip": "10.12.237.171",
+      "ownerKind": "StatefulSet",
+      "ownerName": "kafka"
+    },
+    {
+      "namespace": "grpc",
+      "name": "ledger-api-68afc769a-cjbrt",
+      "nodeName": "node-18471212446e",
+      "ip": "10.44.205.170",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "ledger-api-68afc769a"
+    },
+    {
+      "namespace": "grpc",
+      "name": "ledger-api-68afc769a-phj4b",
+      "nodeName": "node-93ac58ee2d7c",
+      "ip": "10.37.231.163",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "ledger-api-68afc769a"
+    },
+    {
+      "namespace": "grpc",
+      "name": "ledger-api-68afc769a-qw44m",
+      "nodeName": "node-3f67311a85f2",
+      "ip": "10.178.155.240",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "ledger-api-68afc769a"
+    },
+    {
+      "namespace": "ingress",
+      "name": "web-60c369a64-2xz8d",
+      "nodeName": "node-e6d04046b563",
+      "ip": "10.178.171.106",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "web-60c369a64"
+    },
+    {
+      "namespace": "ingress",
+      "name": "web-60c369a64-8blnf",
+      "nodeName": "node-9b8c41200ca4",
+      "ip": "10.61.107.78",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "web-60c369a64"
+    },
+    {
+      "namespace": "ingress",
+      "name": "web-60c369a64-dkfq4",
+      "nodeName": "node-9e6e18346a12",
+      "ip": "10.9.42.60",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "web-60c369a64"
+    },
+    {
+      "namespace": "ingress",
+      "name": "web-60c369a64-hgdsm",
+      "nodeName": "node-437f608425bb",
+      "ip": "10.226.105.98",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "web-60c369a64"
+    },
+    {
+      "namespace": "ingress",
+      "name": "web-60c369a64-j7wdk",
+      "nodeName": "node-d027e50c7dda",
+      "ip": "10.227.47.51",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "web-60c369a64"
+    },
+    {
+      "namespace": "ingress",
+      "name": "web-60c369a64-sqgs9",
+      "nodeName": "node-9430298e3bf6",
+      "ip": "10.121.215.134",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "web-60c369a64"
+    },
+    {
+      "namespace": "jobs",
+      "name": "nightly-report--4f759",
+      "nodeName": "node-be4df004692a",
+      "ip": "10.186.53.121",
+      "ownerKind": "Job",
+      "ownerName": "nightly-report"
+    },
+    {
+      "namespace": "kube-system",
+      "name": "coredns-39084811d-6vkds",
+      "nodeName": "node-a08f2701621c",
+      "ip": "10.117.107.242",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "coredns-39084811d"
+    },
+    {
+      "namespace": "kube-system",
+      "name": "coredns-39084811d-m5hjq",
+      "nodeName": "node-47838d4bed41",
+      "ip": "10.191.236.14",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "coredns-39084811d"
+    },
+    {
+      "namespace": "legacy",
+      "name": "billing-portal-cde0518aa-8m2bl",
+      "nodeName": "node-387727d706a8",
+      "ip": "10.117.183.107",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "billing-portal-cde0518aa"
+    },
+    {
+      "namespace": "legacy",
+      "name": "billing-portal-cde0518aa-bgkcn",
+      "nodeName": "node-ddfcb2ba22a7",
+      "ip": "10.52.160.254",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "billing-portal-cde0518aa"
+    },
+    {
+      "namespace": "legacy",
+      "name": "billing-portal-cde0518aa-glf9l",
+      "nodeName": "node-b372a41f63ad",
+      "ip": "10.69.198.33",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "billing-portal-cde0518aa"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-2lsqz",
+      "nodeName": "node-b38dcf265d06",
+      "ip": "10.51.7.208",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-4vp6c",
+      "nodeName": "node-5b29c32ee2fb",
+      "ip": "10.35.255.69",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-7slhq",
+      "nodeName": "node-3f67311a85f2",
+      "ip": "10.211.86.45",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-bc9pb",
+      "nodeName": "node-93ac58ee2d7c",
+      "ip": "10.11.91.255",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-c7sb6",
+      "nodeName": "node-eff9e8af600b",
+      "ip": "10.30.97.238",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-cqkwc",
+      "nodeName": "node-a08f2701621c",
+      "ip": "10.62.53.253",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-h5wbs",
+      "nodeName": "node-3cf5d17e14f7",
+      "ip": "10.16.240.6",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-hsshp",
+      "nodeName": "node-437f608425bb",
+      "ip": "10.72.139.120",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-l8sqk",
+      "nodeName": "node-ddfcb2ba22a7",
+      "ip": "10.116.221.146",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-llx4l",
+      "nodeName": "node-d53ee098ff97",
+      "ip": "10.131.62.134",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-lmtxw",
+      "nodeName": "node-8d1927a5c2e1",
+      "ip": "10.182.98.53",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-mdtv4",
+      "nodeName": "node-9430298e3bf6",
+      "ip": "10.127.248.49",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-n6kbr",
+      "nodeName": "node-d027e50c7dda",
+      "ip": "10.147.56.21",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-nx2db",
+      "nodeName": "node-b76cebb90206",
+      "ip": "10.11.223.109",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-phhfl",
+      "nodeName": "node-9e6e18346a12",
+      "ip": "10.24.130.30",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-px68m",
+      "nodeName": "node-db5898acc69e",
+      "ip": "10.110.87.225",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-qg2mg",
+      "nodeName": "node-47838d4bed41",
+      "ip": "10.245.193.187",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-s69bp",
+      "nodeName": "node-e6d04046b563",
+      "ip": "10.182.77.8",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-ss8zw",
+      "nodeName": "node-387727d706a8",
+      "ip": "10.85.204.163",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-swlr5",
+      "nodeName": "node-9b8c41200ca4",
+      "ip": "10.214.148.8",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-v6gdd",
+      "nodeName": "node-be4df004692a",
+      "ip": "10.148.76.101",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-vm4z5",
+      "nodeName": "node-2fb343c7330f",
+      "ip": "10.155.43.247",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-vwv4t",
+      "nodeName": "node-18471212446e",
+      "ip": "10.146.164.205",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "node-exporter-zmhzt",
+      "nodeName": "node-b372a41f63ad",
+      "ip": "10.154.152.218",
+      "hostNetwork": true,
+      "ownerKind": "DaemonSet",
+      "ownerName": "node-exporter"
+    },
+    {
+      "namespace": "monitoring",
+      "name": "prometheus-server-0",
+      "nodeName": "node-b76cebb90206",
+      "ip": "10.230.6.134",
+      "ownerKind": "StatefulSet",
+      "ownerName": "prometheus-server"
+    },
+    {
+      "namespace": "notify",
+      "name": "worker-168bd5b01-52484",
+      "nodeName": "node-437f608425bb",
+      "ip": "10.166.44.158",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "worker-168bd5b01"
+    },
+    {
+      "namespace": "notify",
+      "name": "worker-168bd5b01-9pwsj",
+      "nodeName": "node-9e6e18346a12",
+      "ip": "10.87.133.83",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "worker-168bd5b01"
+    },
+    {
+      "namespace": "notify",
+      "name": "worker-168bd5b01-jr84b",
+      "nodeName": "node-e6d04046b563",
+      "ip": "10.102.197.105",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "worker-168bd5b01"
+    },
+    {
+      "namespace": "orders",
+      "name": "api-376abf73d-6q8l8",
+      "nodeName": "node-b76cebb90206",
+      "ip": "10.184.103.128",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-376abf73d"
+    },
+    {
+      "namespace": "orders",
+      "name": "api-376abf73d-7t6bf",
+      "nodeName": "node-d53ee098ff97",
+      "ip": "10.197.226.7",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-376abf73d"
+    },
+    {
+      "namespace": "orders",
+      "name": "api-376abf73d-ddgt9",
+      "nodeName": "node-be4df004692a",
+      "ip": "10.214.200.143",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-376abf73d"
+    },
+    {
+      "namespace": "orders",
+      "name": "api-376abf73d-mrtch",
+      "nodeName": "node-d027e50c7dda",
+      "ip": "10.18.219.224",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-376abf73d"
+    },
+    {
+      "namespace": "orders",
+      "name": "api-376abf73d-pdtg2",
+      "nodeName": "node-b38dcf265d06",
+      "ip": "10.148.74.4",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-376abf73d"
+    },
+    {
+      "namespace": "orders",
+      "name": "api-376abf73d-tkmlc",
+      "nodeName": "node-db5898acc69e",
+      "ip": "10.69.100.28",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-376abf73d"
+    },
+    {
+      "namespace": "payments",
+      "name": "api-bf51c9acf-2tjc7",
+      "nodeName": "node-5b29c32ee2fb",
+      "ip": "10.56.7.165",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-bf51c9acf"
+    },
+    {
+      "namespace": "payments",
+      "name": "api-bf51c9acf-8fnjh",
+      "nodeName": "node-9430298e3bf6",
+      "ip": "10.14.1.92",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-bf51c9acf"
+    },
+    {
+      "namespace": "payments",
+      "name": "api-bf51c9acf-fbj9v",
+      "nodeName": "node-9b8c41200ca4",
+      "ip": "10.90.216.121",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-bf51c9acf"
+    },
+    {
+      "namespace": "payments",
+      "name": "api-bf51c9acf-lndxd",
+      "nodeName": "node-437f608425bb",
+      "ip": "10.15.223.23",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-bf51c9acf"
+    },
+    {
+      "namespace": "payments",
+      "name": "api-bf51c9acf-m8pgv",
+      "nodeName": "node-93ac58ee2d7c",
+      "ip": "10.120.251.11",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-bf51c9acf"
+    },
+    {
+      "namespace": "payments",
+      "name": "api-bf51c9acf-tpln7",
+      "nodeName": "node-e6d04046b563",
+      "ip": "10.198.48.226",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-bf51c9acf"
+    },
+    {
+      "namespace": "search",
+      "name": "indexer-4923eb794-286mp",
+      "nodeName": "node-5b29c32ee2fb",
+      "ip": "10.167.103.211",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "indexer-4923eb794"
+    },
+    {
+      "namespace": "search",
+      "name": "indexer-4923eb794-72b8g",
+      "nodeName": "node-18471212446e",
+      "ip": "10.250.3.157",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "indexer-4923eb794"
+    },
+    {
+      "namespace": "search",
+      "name": "indexer-4923eb794-f44jz",
+      "nodeName": "node-3f67311a85f2",
+      "ip": "10.35.66.163",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "indexer-4923eb794"
+    },
+    {
+      "namespace": "search",
+      "name": "indexer-4923eb794-hwbkt",
+      "nodeName": "node-93ac58ee2d7c",
+      "ip": "10.96.73.168",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "indexer-4923eb794"
+    },
+    {
+      "namespace": "shop",
+      "name": "storefront-3bbd62c89-48jz6",
+      "nodeName": "node-eff9e8af600b",
+      "ip": "10.233.5.16",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "storefront-3bbd62c89"
+    },
+    {
+      "namespace": "shop",
+      "name": "storefront-3bbd62c89-4clcz",
+      "nodeName": "node-5b29c32ee2fb",
+      "ip": "10.89.254.56",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "storefront-3bbd62c89"
+    },
+    {
+      "namespace": "shop",
+      "name": "storefront-3bbd62c89-94rfv",
+      "nodeName": "node-a08f2701621c",
+      "ip": "10.154.220.76",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "storefront-3bbd62c89"
+    },
+    {
+      "namespace": "shop",
+      "name": "storefront-3bbd62c89-9jbvv",
+      "nodeName": "node-2fb343c7330f",
+      "ip": "10.44.187.214",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "storefront-3bbd62c89"
+    },
+    {
+      "namespace": "shop",
+      "name": "storefront-3bbd62c89-sqjgs",
+      "nodeName": "node-db5898acc69e",
+      "ip": "10.167.126.99",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "storefront-3bbd62c89"
+    },
+    {
+      "namespace": "shop",
+      "name": "storefront-3bbd62c89-vkm8n",
+      "nodeName": "node-b38dcf265d06",
+      "ip": "10.16.123.27",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "storefront-3bbd62c89"
+    }
+  ],
+  "ingresses": [
+    {
+      "namespace": "admin",
+      "name": "console",
+      "className": "nginx",
+      "services": [
+        "console"
+      ]
+    },
+    {
+      "namespace": "api",
+      "name": "internal",
+      "className": "alb",
+      "annotations": {
+        "alb.ingress.kubernetes.io/scheme": "internal",
+        "alb.ingress.kubernetes.io/target-type": "instance"
+      },
+      "services": [
+        "internal"
+      ],
+      "lbHostnames": [
+        "b0c9bbc26f3a5c6e.elb.amazonaws.com"
+      ]
+    },
+    {
+      "namespace": "ingress",
+      "name": "web",
+      "className": "alb",
+      "annotations": {
+        "alb.ingress.kubernetes.io/scheme": "internet-facing",
+        "alb.ingress.kubernetes.io/target-type": "ip"
+      },
+      "services": [
+        "web"
+      ],
+      "lbHostnames": [
+        "4990927055fc1402.elb.amazonaws.com"
+      ]
+    },
+    {
+      "namespace": "shop",
+      "name": "storefront",
+      "annotations": {
+        "alb.ingress.kubernetes.io/scheme": "internet-facing"
+      },
+      "services": [
+        "storefront"
+      ],
+      "lbHostnames": [
+        "57c649d7cf9e9c6d.elb.amazonaws.com"
+      ]
+    }
+  ],
+  "ingressClasses": [
+    {
+      "name": "alb",
+      "controller": "ingress.k8s.aws/alb",
+      "isDefault": true
+    },
+    {
+      "name": "nginx",
+      "controller": "k8s.io/ingress-nginx"
+    }
+  ],
+  "aws": {
+    "vpcIds": [
+      "vpc-c45b658de1139c1d1"
+    ],
+    "subnets": {
+      "subnet-5976ced423b9f5c1e": {
+        "az": "ap-northeast-2c",
+        "vpcId": "vpc-c45b658de1139c1d1"
+      },
+      "subnet-70b5ea4d6a30fd929": {
+        "az": "ap-northeast-2b",
+        "vpcId": "vpc-c45b658de1139c1d1"
+      },
+      "subnet-88e8039da9c0b6d74": {
+        "az": "ap-northeast-2c",
+        "vpcId": "vpc-c45b658de1139c1d1"
+      },
+      "subnet-be2614ea2ca5bc0a5": {
+        "az": "ap-northeast-2b",
+        "vpcId": "vpc-c45b658de1139c1d1"
+      },
+      "subnet-c0db8e104f71e6a7d": {
+        "az": "ap-northeast-2a",
+        "vpcId": "vpc-c45b658de1139c1d1"
+      },
+      "subnet-da45d04bfc27ae712": {
+        "az": "ap-northeast-2a",
+        "vpcId": "vpc-c45b658de1139c1d1"
+      }
+    },
+    "ipZones": {
+      "10.197.236.207": "ap-northeast-2c",
+      "10.243.161.196": "ap-northeast-2a"
+    },
+    "loadBalancers": [
+      {
+        "name": "lb-64fad0b8db85",
+        "dnsName": "1925fd6a1619628a.elb.amazonaws.com",
+        "type": "network",
+        "scheme": "internet-facing",
+        "vpcId": "vpc-c45b658de1139c1d1",
+        "zones": [
+          "ap-northeast-2a",
+          "ap-northeast-2b",
+          "ap-northeast-2c"
+        ],
+        "crossZone": false,
+        "targetGroups": [
+          {
+            "name": "tg-7570e3a61399",
+            "targetType": "instance",
+            "crossZone": "use_load_balancer_configuration"
+          }
+        ]
+      },
+      {
+        "name": "lb-649b31c95b2d",
+        "dnsName": "4492f7b32ab341d6.elb.amazonaws.com",
+        "type": "classic",
+        "scheme": "internet-facing",
+        "vpcId": "vpc-c45b658de1139c1d1",
+        "zones": [
+          "ap-northeast-2a",
+          "ap-northeast-2b",
+          "ap-northeast-2c"
+        ]
+      },
+      {
+        "name": "lb-4a3573742180",
+        "dnsName": "b0c9bbc26f3a5c6e.elb.amazonaws.com",
+        "type": "application",
+        "scheme": "internal",
+        "vpcId": "vpc-c45b658de1139c1d1",
+        "zones": [
+          "ap-northeast-2a",
+          "ap-northeast-2b",
+          "ap-northeast-2c"
+        ],
+        "targetGroups": [
+          {
+            "name": "tg-3bc9194f90f4",
+            "targetType": "instance"
+          }
+        ]
+      },
+      {
+        "name": "lb-8be06c2357f8",
+        "dnsName": "286ebe2299a9db17.elb.amazonaws.com",
+        "type": "network",
+        "scheme": "internet-facing",
+        "vpcId": "vpc-c45b658de1139c1d1",
+        "zones": [
+          "ap-northeast-2a",
+          "ap-northeast-2b",
+          "ap-northeast-2c"
+        ],
+        "crossZone": false,
+        "targetGroups": [
+          {
+            "name": "tg-d6d1a7fd82a0",
+            "targetType": "ip",
+            "crossZone": "true"
+          }
+        ]
+      },
+      {
+        "name": "lb-5c8d212e1b8b",
+        "dnsName": "29b35edd1d77d613.elb.amazonaws.com",
+        "type": "network",
+        "scheme": "internal",
+        "vpcId": "vpc-c45b658de1139c1d1",
+        "zones": [
+          "ap-northeast-2a",
+          "ap-northeast-2b",
+          "ap-northeast-2c"
+        ],
+        "crossZone": false,
+        "targetGroups": [
+          {
+            "name": "tg-03ed338270b3",
+            "targetType": "ip",
+            "crossZone": "use_load_balancer_configuration"
+          }
+        ]
+      },
+      {
+        "name": "lb-ce4312a5ec4d",
+        "dnsName": "4990927055fc1402.elb.amazonaws.com",
+        "type": "application",
+        "scheme": "internet-facing",
+        "vpcId": "vpc-c45b658de1139c1d1",
+        "zones": [
+          "ap-northeast-2a",
+          "ap-northeast-2b",
+          "ap-northeast-2c"
+        ],
+        "targetGroups": [
+          {
+            "name": "tg-325a8240fcd7",
+            "targetType": "ip"
+          }
+        ]
+      },
+      {
+        "name": "lb-cb564c89cec0",
+        "dnsName": "57c649d7cf9e9c6d.elb.amazonaws.com",
+        "type": "application",
+        "scheme": "internet-facing",
+        "vpcId": "vpc-c45b658de1139c1d1",
+        "zones": [
+          "ap-northeast-2a",
+          "ap-northeast-2b",
+          "ap-northeast-2c"
+        ],
+        "targetGroups": [
+          {
+            "name": "tg-a1aea23475d7",
+            "targetType": "instance"
+          }
+        ]
+      }
+    ],
+    "rds": [
+      {
+        "id": "ledger-instance-1",
+        "clusterId": "ledger",
+        "engine": "aurora-postgresql",
+        "az": "ap-northeast-2a",
+        "multiAz": false,
+        "vpcId": "vpc-c45b658de1139c1d1"
+      },
+      {
+        "id": "ledger-instance-2",
+        "clusterId": "ledger",
+        "engine": "aurora-postgresql",
+        "az": "ap-northeast-2c",
+        "multiAz": false,
+        "vpcId": "vpc-c45b658de1139c1d1"
+      },
+      {
+        "id": "orders-db",
+        "engine": "postgres",
+        "az": "ap-northeast-2a",
+        "secondaryAz": "ap-northeast-2b",
+        "multiAz": true,
+        "vpcId": "vpc-c45b658de1139c1d1"
+      }
+    ],
+    "caches": [
+      {
+        "id": "sessions-001",
+        "engine": "redis",
+        "replicationGroupId": "sessions",
+        "nodeZones": [
+          "ap-northeast-2a"
+        ],
+        "vpcId": "vpc-c45b658de1139c1d1"
+      },
+      {
+        "id": "sessions-002",
+        "engine": "redis",
+        "replicationGroupId": "sessions",
+        "nodeZones": [
+          "ap-northeast-2b"
+        ],
+        "vpcId": "vpc-c45b658de1139c1d1"
+      }
+    ],
+    "msk": [
+      {
+        "name": "events-msk",
+        "brokerZones": [
+          "ap-northeast-2a",
+          "ap-northeast-2b",
+          "ap-northeast-2c"
+        ],
+        "vpcId": "vpc-c45b658de1139c1d1"
+      }
+    ]
+  },
+  "volume": {
+    "window": "7d",
+    "recvBytesPerS": {
+      "admin/console-cb067ef6e-89d72": 1563.3814967518545,
+      "admin/console-cb067ef6e-schmp": 1523.0382563345654,
+      "api/internal-4bcda7b8d-bpn99": 289164.8380715014,
+      "api/internal-4bcda7b8d-j9k7f": 305555.7996750032,
+      "api/internal-4bcda7b8d-jshzl": 331205.2881794213,
+      "auth/token-bbdf61981-4dk45": 1506.9400078525046,
+      "auth/token-bbdf61981-69t4b": 1423.0967701602735,
+      "auth/token-bbdf61981-tjf6g": 1699.5928516168515,
+      "cache/redis-0": 251106.21785921184,
+      "cache/redis-1": 231910.7111951081,
+      "cache/redis-2": 327168.2561308652,
+      "edge/gateway-0d217525c-5lgjj": 133688.22383239155,
+      "edge/gateway-0d217525c-h9d4t": 109877.6182687455,
+      "edge/gateway-0d217525c-spk88": 103656.3801210852,
+      "edge/tcp-ingest-538abed8b-9pq9z": 86602.90883677844,
+      "edge/tcp-ingest-538abed8b-mm55d": 88581.40529485773,
+      "edge/tcp-ingest-538abed8b-z2z4r": 94877.41426342555,
+      "events/kafka-0": 391493.94841249514,
+      "events/kafka-1": 399497.8000622847,
+      "events/kafka-2": 404995.90584620775,
+      "grpc/ledger-api-68afc769a-cjbrt": 49242.23641295101,
+      "grpc/ledger-api-68afc769a-phj4b": 50609.557187240796,
+      "grpc/ledger-api-68afc769a-qw44m": 54469.19405412918,
+      "ingress/web-60c369a64-2xz8d": 397869.17323875276,
+      "ingress/web-60c369a64-8blnf": 316278.48130503454,
+      "ingress/web-60c369a64-dkfq4": 379274.9084706983,
+      "ingress/web-60c369a64-hgdsm": 403819.0654128709,
+      "ingress/web-60c369a64-j7wdk": 402444.1948143823,
+      "ingress/web-60c369a64-sqgs9": 415128.9915730767,
+      "jobs/nightly-report--4f759": 120000,
+      "kube-system/coredns-39084811d-6vkds": 4969.234586213752,
+      "kube-system/coredns-39084811d-m5hjq": 6604.839487860322,
+      "legacy/billing-portal-cde0518aa-8m2bl": 41152.44895738932,
+      "legacy/billing-portal-cde0518aa-bgkcn": 40557.464719826465,
+      "legacy/billing-portal-cde0518aa-glf9l": 34030.827063524965,
+      "monitoring/node-exporter-2lsqz": 6435523.413911378,
+      "monitoring/node-exporter-4vp6c": 5658128.965294703,
+      "monitoring/node-exporter-7slhq": 7685567.922487924,
+      "monitoring/node-exporter-bc9pb": 6326908.148025284,
+      "monitoring/node-exporter-c7sb6": 6355118.814452443,
+      "monitoring/node-exporter-cqkwc": 8528877.562603608,
+      "monitoring/node-exporter-h5wbs": 7010080.433530848,
+      "monitoring/node-exporter-hsshp": 7365359.881429294,
+      "monitoring/node-exporter-l8sqk": 5251323.379123107,
+      "monitoring/node-exporter-llx4l": 7370268.274394402,
+      "monitoring/node-exporter-lmtxw": 7926666.507652687,
+      "monitoring/node-exporter-mdtv4": 7319120.939877291,
+      "monitoring/node-exporter-n6kbr": 6556126.486793324,
+      "monitoring/node-exporter-nx2db": 4119694.6341572,
+      "monitoring/node-exporter-phhfl": 8804583.758974088,
+      "monitoring/node-exporter-px68m": 6087040.451319765,
+      "monitoring/node-exporter-qg2mg": 8135001.394262653,
+      "monitoring/node-exporter-s69bp": 7147847.862706947,
+      "monitoring/node-exporter-ss8zw": 7141170.070673638,
+      "monitoring/node-exporter-swlr5": 8544714.067904562,
+      "monitoring/node-exporter-v6gdd": 8401435.74147973,
+      "monitoring/node-exporter-vm4z5": 6387131.555574691,
+      "monitoring/node-exporter-vwv4t": 5342859.073430462,
+      "monitoring/node-exporter-zmhzt": 4045536.565625001,
+      "monitoring/prometheus-server-0": 7716.049382716049,
+      "notify/worker-168bd5b01-52484": 5958.61261386913,
+      "notify/worker-168bd5b01-9pwsj": 5332.262484158586,
+      "notify/worker-168bd5b01-jr84b": 6070.236013083393,
+      "orders/api-376abf73d-6q8l8": 207928.0174623802,
+      "orders/api-376abf73d-7t6bf": 206844.51299531842,
+      "orders/api-376abf73d-ddgt9": 195566.43676089979,
+      "orders/api-376abf73d-mrtch": 214833.92394436072,
+      "orders/api-376abf73d-pdtg2": 215101.60012937972,
+      "orders/api-376abf73d-tkmlc": 232873.65685580918,
+      "payments/api-bf51c9acf-2tjc7": 304777.0541616408,
+      "payments/api-bf51c9acf-8fnjh": 291099.676603941,
+      "payments/api-bf51c9acf-fbj9v": 241996.34408602954,
+      "payments/api-bf51c9acf-lndxd": 239204.00748177033,
+      "payments/api-bf51c9acf-m8pgv": 294779.4948108336,
+      "payments/api-bf51c9acf-tpln7": 248513.79322615516,
+      "search/indexer-4923eb794-286mp": 214651.29379594943,
+      "search/indexer-4923eb794-f44jz": 148036.02813788687,
+      "search/indexer-4923eb794-hwbkt": 158146.01139949702,
+      "shop/storefront-3bbd62c89-48jz6": 86552.09820874847,
+      "shop/storefront-3bbd62c89-4clcz": 104424.07996392377,
+      "shop/storefront-3bbd62c89-94rfv": 106217.03967814975,
+      "shop/storefront-3bbd62c89-9jbvv": 105188.59457537593,
+      "shop/storefront-3bbd62c89-sqjgs": 79031.49485419283,
+      "shop/storefront-3bbd62c89-vkm8n": 97290.39642331297
+    }
+  },
+  "cost": {
+    "month": "2026-08",
+    "actualUsd": 171.38,
+    "usageType": "APN2-DataTransfer-Regional-Bytes"
+  }
+}

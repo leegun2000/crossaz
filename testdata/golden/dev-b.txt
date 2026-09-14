@@ -1,0 +1,2 @@
+Cluster: dev-b   AZs: 1   Nodes: 3
+Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습니다.

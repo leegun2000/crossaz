@@ -1,0 +1,47 @@
+Cluster: prod-a   Region: ap-northeast-2   AZs: 3   Nodes: 24   Layers: L0+L1+L2+L3
+Exposure: LIKELY
+
+BILLABLE
+SERVICE           ROUTE         RECV/mo   AZ SPREAD   EST $/mo   CONF   FIX
+payments/api      clusterip     4.2 TB    3/3 even    ~$56       med    PreferClose
+events/kafka      headless      3.1 TB    3/3 even    ~$41       med    relocate
+cache/redis       clusterip     2.1 TB    1/3         ~$28       med    topologySpread
+search/indexer    clusterip     1.8 TB    3/3         ~$24       med    PreferClose
+shop/storefront   alb (inst)    1.5 TB    3/3 even    ~$20       med    PreferClose
+edge/gateway      nlb-xz (ip)   900 GB    3/3 even    ~$12       med    disable-nlb-xz
+(5 paths below $1/mo hidden — use --threshold 0)
+
+NOT BILLABLE
+SERVICE                 ROUTE              RECV/mo   AZ SPREAD   EST $/mo   CONF   NOTE
+api/internal            alb (inst)         2.4 TB    3/3 even    —          high   alb-private-same-vpc
+edge/tcp-ingest         nlb-zonal (inst)   700 GB    3/3 even    —          med    nlb-zonal-internet
+ingress/web             alb (ip)           6.0 TB    3/3 even    —          med    alb-ip-target-mode
+legacy/billing-portal   clb                300 GB    3/3 even    —          high   clb-private-same-vpc
+msk/events-msk          external           —         3/3 even    —          high   msk-inter-broker
+orders/api              clusterip          3.3 TB    3/3 even    —          med    topology-aware-routing
+rds/ledger              external           —         2/3 even    —          high   rds-multiaz-replication
+rds/orders-db           external           —         2/3 even    —          high   rds-multiaz-replication
+
+UNCERTAIN
+SERVICE                    ROUTE            RECV/mo   AZ SPREAD   EST $/mo   CONF   NOTE
+default/kubernetes         clusterip        ?         2/3 even    ?          low    clusterip-cross-az-partial
+elasticache/sessions       external         ?         2/3 even    ?          low    elasticache-cross-az
+grpc/ledger-api            nlb-zonal (ip)   400 GB    3/3 even    ?          low    nlb-client-cross-az
+monitoring/node-exporter   clusterip        ?         3/3 even    ?          low    clusterip-cross-az
+msk/events-msk             external         ?         3/3 even    ?          low    msk-client-cross-az
+rds/ledger                 external         ?         2/3 even    ?          low    rds-cross-az
+rds/orders-db              external         ?         1/3         ?          low    rds-cross-az
+
+Estimated total: ~$183/mo
+Run `crossaz explain payments/api` for rule details.
+
+VERIFY
+  Estimated:  ~$183/mo
+  Actual:     $171/mo   (Cost Explorer APN2-DataTransfer-Regional-Bytes, 2026-08 — 계정·리전 전체)
+  Ratio:      1.07   제외 규칙이 대체로 맞음
+
+  Ratio > 1.5 → 제외 규칙 누락 의심
+  Ratio < 0.5 → 클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심
+
+WARNINGS
+  - 추정 총액에 볼륨을 측정하지 못한 과금 경로 2개가 빠져 있음

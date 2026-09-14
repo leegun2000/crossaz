@@ -1,0 +1,59 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: crossaz
+spec:
+  version: "{{ .TagName }}"
+  homepage: https://github.com/leegun2000/crossaz
+  shortDescription: Find billed cross-AZ traffic paths in EKS
+  description: |
+    crossaz is a read-only scanner for EKS (AWS VPC CNI) clusters. It lists the
+    Service, load balancer and RDS/ElastiCache/MSK paths whose cross-AZ traffic
+    is actually billed, estimates the monthly cost, and suggests a fix such as
+    trafficDistribution or topologySpreadConstraints. Paths that cross an AZ but
+    are not billed (e.g. ALB to targets over private IPs in the same VPC) are
+    reported separately instead of being flagged.
+
+    It works with Kubernetes read access only; AWS read-only credentials,
+    Prometheus and Cost Explorer add layers of accuracy.
+  caveats: |
+    Requires list access to nodes, services, pods, endpointslices, ingresses and
+    ingressclasses, plus get on the kube-system/kube-proxy DaemonSet (apps) — see
+    the ClusterRole in the README. Without the kube-proxy permission, topology
+    hints are not credited and services that already set trafficDistribution are
+    reported as billable or unverified. For AWS load balancer/RDS/ElastiCache/MSK
+    checks it needs the read-only IAM policy in the README. It never calls a
+    write API.
+
+      kubectl crossaz scan
+  platforms:
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: amd64
+    {{addURIAndSha "https://github.com/leegun2000/crossaz/releases/download/{{ .TagName }}/crossaz_{{ .TagName }}_darwin_amd64.tar.gz" .TagName }}
+    bin: crossaz
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: arm64
+    {{addURIAndSha "https://github.com/leegun2000/crossaz/releases/download/{{ .TagName }}/crossaz_{{ .TagName }}_darwin_arm64.tar.gz" .TagName }}
+    bin: crossaz
+  - selector:
+      matchLabels:
+        os: linux
+        arch: amd64
+    {{addURIAndSha "https://github.com/leegun2000/crossaz/releases/download/{{ .TagName }}/crossaz_{{ .TagName }}_linux_amd64.tar.gz" .TagName }}
+    bin: crossaz
+  - selector:
+      matchLabels:
+        os: linux
+        arch: arm64
+    {{addURIAndSha "https://github.com/leegun2000/crossaz/releases/download/{{ .TagName }}/crossaz_{{ .TagName }}_linux_arm64.tar.gz" .TagName }}
+    bin: crossaz
+  - selector:
+      matchLabels:
+        os: windows
+        arch: amd64
+    {{addURIAndSha "https://github.com/leegun2000/crossaz/releases/download/{{ .TagName }}/crossaz_{{ .TagName }}_windows_amd64.zip" .TagName }}
+    bin: crossaz.exe

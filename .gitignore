@@ -1,0 +1,12 @@
+# goreleaser
+dist/
+
+# go build ./cmd/crossaz output (root only; cmd/crossaz/ is source)
+/crossaz
+/crossaz.exe
+*.test
+
+# coverage
+coverage.out
+coverage.html
+*.coverprofile

@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: crossaz
+
+builds:
+  - id: crossaz
+    main: ./cmd/crossaz
+    binary: crossaz
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: crossaz
+    ids: [crossaz]
+    # .Tag (with the leading "v") so .krew.yaml can use {{ .TagName }} as-is:
+    # krew-release-bot templates have no trimPrefix.
+    name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+homebrew_casks:
+  - name: crossaz
+    ids: [crossaz]
+    binaries: [crossaz]
+    homepage: https://github.com/leegun2000/crossaz
+    description: Find billed cross-AZ traffic paths in EKS clusters (read-only)
+    directory: Casks
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    repository:
+      owner: leegun2000
+      name: homebrew-tap
+      # The default GITHUB_TOKEN cannot push to another repository.
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    hooks:
+      post:
+        # Binaries are not notarized; drop the quarantine flag so Gatekeeper lets them run.
+        install: |
+          if OS.mac? && system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/crossaz"]
+          end

@@ -1,0 +1,1075 @@
+{
+  "cluster": "prod-a",
+  "region": "ap-northeast-2",
+  "zones": [
+    "ap-northeast-2a",
+    "ap-northeast-2b",
+    "ap-northeast-2c"
+  ],
+  "nodeCount": 24,
+  "layers": [
+    "L0",
+    "L1",
+    "L2",
+    "L3"
+  ],
+  "exposure": "likely",
+  "paths": [
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "payments/api",
+        "azDist": {
+          "ap-northeast-2a": 2,
+          "ap-northeast-2b": 2,
+          "ap-northeast-2c": 2
+        }
+      },
+      "route": "clusterip",
+      "facts": {
+        "route": "clusterip",
+        "targetKind": "service",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "k8s",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "clusterip-cross-az",
+      "reason": "kube-proxy가 AZ와 무관하게 엔드포인트를 고름. 다른 AZ pod로 가는 몫이 양쪽 $0.01/GB씩 과금",
+      "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
+      "rateGb": 0.02,
+      "ruleConfidence": "high",
+      "bytesPerMo": 4200000000000.0005,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": 56.00000000000002,
+      "confidence": "medium",
+      "fix": {
+        "kind": "PreferClose",
+        "description": "Service에 trafficDistribution 설정 (k8s 1.31-1.33: PreferClose, 1.34+: PreferSameZone — 같은 의미)",
+        "command": "kubectl patch svc -n payments api --type=merge \\\n  -p '{\"spec\":{\"trafficDistribution\":\"PreferClose\"}}'"
+      }
+    },
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "events/kafka",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "headless",
+      "facts": {
+        "route": "headless",
+        "targetKind": "service",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "k8s",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "headless-cross-az",
+      "reason": "headless는 DNS로 pod IP에 직접 연결(kube-proxy 없음, trafficDistribution 무효). StatefulSet 복제가 AZ를 넘으면 과금",
+      "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
+      "rateGb": 0.02,
+      "ruleConfidence": "high",
+      "bytesPerMo": 3099999999999.9995,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": 41.33333333333333,
+      "confidence": "medium",
+      "fix": {
+        "kind": "relocate",
+        "description": "복제 경로는 HA와 맞바꿈. Kafka는 broker.rack/client.rack(follower fetching), Elasticsearch는 shard allocation awareness로 읽기만 zone-local로"
+      }
+    },
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "cache/redis",
+        "azDist": {
+          "ap-northeast-2a": 3
+        }
+      },
+      "route": "clusterip",
+      "facts": {
+        "route": "clusterip",
+        "targetKind": "service",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "partial",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "k8s",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "clusterip-cross-az-partial",
+      "reason": "엔드포인트가 없는 AZ의 호출자는 항상 다른 AZ로 넘어감 (trafficDistribution으로도 해결 안 됨)",
+      "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
+      "rateGb": 0.02,
+      "ruleConfidence": "high",
+      "bytesPerMo": 2100000000000,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": 28.000000000000004,
+      "confidence": "medium",
+      "fix": {
+        "kind": "topologySpread",
+        "description": "모든 AZ에 엔드포인트가 생기도록 topologySpreadConstraints(topology.kubernetes.io/zone) 추가 후 trafficDistribution 설정"
+      }
+    },
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "search/indexer",
+        "azDist": {
+          "ap-northeast-2a": 2,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "clusterip",
+      "facts": {
+        "route": "clusterip",
+        "targetKind": "service",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "k8s",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "clusterip-cross-az",
+      "reason": "kube-proxy가 AZ와 무관하게 엔드포인트를 고름. 다른 AZ pod로 가는 몫이 양쪽 $0.01/GB씩 과금",
+      "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
+      "rateGb": 0.02,
+      "ruleConfidence": "high",
+      "bytesPerMo": 1799999999999.9998,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": 24,
+      "confidence": "medium",
+      "confidenceNote": "3/4 pods measured",
+      "fix": {
+        "kind": "PreferClose",
+        "description": "Service에 trafficDistribution 설정 (k8s 1.31-1.33: PreferClose, 1.34+: PreferSameZone — 같은 의미)",
+        "command": "kubectl patch svc -n search indexer --type=merge \\\n  -p '{\"spec\":{\"trafficDistribution\":\"PreferClose\"}}'"
+      }
+    },
+    {
+      "source": {
+        "namespace": "shop",
+        "name": "lb-cb564c89cec0",
+        "kind": "alb",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "shop/storefront",
+        "azDist": {
+          "ap-northeast-2a": 2,
+          "ap-northeast-2b": 2,
+          "ap-northeast-2c": 2
+        }
+      },
+      "route": "alb",
+      "facts": {
+        "route": "alb",
+        "targetKind": "service",
+        "scheme": "internet-facing",
+        "targetType": "instance",
+        "externalTrafficPolicy": "Cluster",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "nodeport-hop-cross-az",
+      "reason": "instance 타겟: LB→노드는 무료지만 kube-proxy가 다른 AZ 노드의 pod로 한 번 더 보내면 그 홉은 일반 inter-AZ 과금",
+      "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
+      "rateGb": 0.02,
+      "ruleConfidence": "medium",
+      "bytesPerMo": 1500000000000,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": 20.000000000000004,
+      "confidence": "medium",
+      "fix": {
+        "kind": "PreferClose",
+        "description": "trafficDistribution은 externalTrafficPolicy: Cluster인 외부 트래픽에도 적용됨. 근본 해결은 IP 타겟 모드(ALB: alb.ingress.kubernetes.io/target-type=ip, NLB: service.beta.kubernetes.io/aws-load-balancer-nlb-target-type=ip)",
+        "command": "kubectl patch svc -n shop storefront --type=merge \\\n  -p '{\"spec\":{\"trafficDistribution\":\"PreferClose\"}}'"
+      }
+    },
+    {
+      "source": {
+        "namespace": "edge",
+        "name": "lb-8be06c2357f8",
+        "kind": "nlb",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "edge/gateway",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "nlb-cross-zone",
+      "facts": {
+        "route": "nlb-cross-zone",
+        "targetKind": "service",
+        "scheme": "internet-facing",
+        "targetType": "ip",
+        "externalTrafficPolicy": "Cluster",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "nlb-cross-zone",
+      "reason": "NLB cross-zone이 켜진 타겟그룹은 LB 노드와 다른 AZ 타겟 사이 전송이 양쪽 끝에서 과금 (instance 모드면 kube-proxy 홉 추가)",
+      "sourceUrl": "https://aws.amazon.com/elasticloadbalancing/faqs/",
+      "rateGb": 0.02,
+      "ruleConfidence": "high",
+      "bytesPerMo": 900000000000.0001,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": 12.000000000000002,
+      "confidence": "medium",
+      "fix": {
+        "kind": "disable-nlb-xz",
+        "description": "AZ마다 타겟이 충분하면 타겟그룹 cross-zone을 끈다. 타겟그룹 값이 LB 값보다 우선하므로 TG 속성으로 설정. annotation에 다른 속성이 이미 있으면 --overwrite가 덮어쓰니 값을 합칠 것. annotation을 지우는 것만으로는 꺼지지 않음",
+        "command": "kubectl annotate svc -n edge gateway --overwrite \\\n  service.beta.kubernetes.io/aws-load-balancer-target-group-attributes=load_balancing.cross_zone.enabled=false"
+      }
+    }
+  ],
+  "excluded": [
+    {
+      "source": {
+        "namespace": "api",
+        "name": "lb-4a3573742180",
+        "kind": "alb",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "api/internal",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "alb",
+      "facts": {
+        "route": "alb",
+        "targetKind": "service",
+        "scheme": "internal",
+        "targetType": "instance",
+        "externalTrafficPolicy": "Local",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": false,
+      "ruleId": "alb-private-same-vpc",
+      "reason": "EC2↔ALB 사설 IP·동일 VPC 전송은 AZ와 무관하게 무료 (cross-zone 설정과 무관)",
+      "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
+      "rateGb": 0,
+      "ruleConfidence": "high",
+      "bytesPerMo": 2400000000000,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "high"
+    },
+    {
+      "source": {
+        "namespace": "edge",
+        "name": "lb-64fad0b8db85",
+        "kind": "nlb",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "edge/tcp-ingest",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "nlb-zonal",
+      "facts": {
+        "route": "nlb-zonal",
+        "targetKind": "service",
+        "scheme": "internet-facing",
+        "targetType": "instance",
+        "externalTrafficPolicy": "Local",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": false,
+      "ruleId": "nlb-zonal-internet",
+      "reason": "cross-zone off: LB 노드는 같은 AZ 타겟에만 전달. 인터넷→NLB 유입은 AZ 간 전송이 아님 (VPC 내부에서 공인 IP로 호출하면 별도 공인 IP 요금)",
+      "sourceUrl": "https://aws.amazon.com/blogs/networking-and-content-delivery/exploring-data-transfer-costs-for-aws-network-load-balancers/",
+      "rateGb": 0,
+      "ruleConfidence": "medium",
+      "bytesPerMo": 700000000000,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "medium"
+    },
+    {
+      "source": {
+        "namespace": "ingress",
+        "name": "lb-ce4312a5ec4d",
+        "kind": "alb",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "ingress/web",
+        "azDist": {
+          "ap-northeast-2a": 2,
+          "ap-northeast-2b": 2,
+          "ap-northeast-2c": 2
+        }
+      },
+      "route": "alb",
+      "facts": {
+        "route": "alb",
+        "targetKind": "service",
+        "scheme": "internet-facing",
+        "targetType": "ip",
+        "externalTrafficPolicy": "Cluster",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": false,
+      "ruleId": "alb-ip-target-mode",
+      "reason": "ALB→pod IP 직접 전송. EKS Best Practices는 IP 모드에 전송료 없음으로 설명하나, EC2 요금 문구는 'EC2 인스턴스'만 명시 → --verify로 대조 권장",
+      "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
+      "rateGb": 0,
+      "ruleConfidence": "medium",
+      "bytesPerMo": 6000000000000.001,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "medium"
+    },
+    {
+      "source": {
+        "namespace": "legacy",
+        "name": "lb-649b31c95b2d",
+        "kind": "clb",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "legacy/billing-portal",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "clb",
+      "facts": {
+        "route": "clb",
+        "targetKind": "service",
+        "scheme": "internet-facing",
+        "targetType": "instance",
+        "externalTrafficPolicy": "Local",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": false,
+      "ruleId": "clb-private-same-vpc",
+      "reason": "EC2↔Classic LB 사설 IP·동일 VPC 전송은 무료",
+      "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
+      "rateGb": 0,
+      "ruleConfidence": "high",
+      "bytesPerMo": 300000000000,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "high"
+    },
+    {
+      "source": {
+        "name": "events-msk",
+        "kind": "msk",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "msk",
+        "ref": "events-msk",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "external",
+      "facts": {
+        "route": "external",
+        "targetKind": "msk",
+        "traffic": "replication",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": false,
+      "ruleId": "msk-inter-broker",
+      "reason": "MSK 브로커 간 복제는 요금에 포함",
+      "sourceUrl": "https://aws.amazon.com/msk/pricing/",
+      "rateGb": 0,
+      "ruleConfidence": "high",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "high"
+    },
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "orders/api",
+        "azDist": {
+          "ap-northeast-2a": 2,
+          "ap-northeast-2b": 2,
+          "ap-northeast-2c": 2
+        },
+        "hintedFor": {
+          "ap-northeast-2a": {
+            "ap-northeast-2a": 2
+          },
+          "ap-northeast-2b": {
+            "ap-northeast-2b": 2
+          },
+          "ap-northeast-2c": {
+            "ap-northeast-2c": 2
+          }
+        }
+      },
+      "route": "clusterip",
+      "facts": {
+        "route": "clusterip",
+        "targetKind": "service",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": true,
+        "zoneLocal": true,
+        "evidence": "k8s",
+        "hintsConfigured": true,
+        "directIngressBackend": false
+      },
+      "billable": false,
+      "ruleId": "topology-aware-routing",
+      "reason": "kube-proxy가 같은 AZ 엔드포인트만 사용 (EndpointSlice 힌트가 모든 호출자 AZ를 덮음, 또는 internalTrafficPolicy: Local). 힌트가 제거되면 클러스터 전체로 폴백",
+      "sourceUrl": "https://kubernetes.io/docs/concepts/services-networking/topology-aware-routing/",
+      "rateGb": 0,
+      "ruleConfidence": "medium",
+      "bytesPerMo": 3300000000000.0005,
+      "crossAzFraction": 0,
+      "costPerMo": null,
+      "confidence": "medium"
+    },
+    {
+      "source": {
+        "name": "ledger",
+        "kind": "rds",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "rds",
+        "ref": "ledger",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "external",
+      "facts": {
+        "route": "external",
+        "targetKind": "rds",
+        "traffic": "replication",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "partial",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": false,
+      "ruleId": "rds-multiaz-replication",
+      "reason": "Multi-AZ 프라이머리↔스탠바이, 같은 리전 read replica, Aurora 클러스터 복제는 무료",
+      "sourceUrl": "https://aws.amazon.com/rds/pricing/",
+      "rateGb": 0,
+      "ruleConfidence": "high",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.5,
+      "costPerMo": null,
+      "confidence": "high"
+    },
+    {
+      "source": {
+        "name": "orders-db",
+        "kind": "rds",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1
+        }
+      },
+      "dest": {
+        "kind": "rds",
+        "ref": "orders-db",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1
+        }
+      },
+      "route": "external",
+      "facts": {
+        "route": "external",
+        "targetKind": "rds",
+        "traffic": "replication",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "partial",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": false,
+      "ruleId": "rds-multiaz-replication",
+      "reason": "Multi-AZ 프라이머리↔스탠바이, 같은 리전 read replica, Aurora 클러스터 복제는 무료",
+      "sourceUrl": "https://aws.amazon.com/rds/pricing/",
+      "rateGb": 0,
+      "ruleConfidence": "high",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.5,
+      "costPerMo": null,
+      "confidence": "high"
+    }
+  ],
+  "uncertain": [
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "default/kubernetes",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "clusterip",
+      "facts": {
+        "route": "clusterip",
+        "targetKind": "service",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "partial",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "k8s",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "clusterip-cross-az-partial",
+      "reason": "엔드포인트가 없는 AZ의 호출자는 항상 다른 AZ로 넘어감 (trafficDistribution으로도 해결 안 됨)",
+      "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
+      "rateGb": 0.02,
+      "ruleConfidence": "high",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "low",
+      "confidenceNote": "엔드포인트 pod 메트릭 없음",
+      "fix": {
+        "kind": "topologySpread",
+        "description": "모든 AZ에 엔드포인트가 생기도록 topologySpreadConstraints(topology.kubernetes.io/zone) 추가 후 trafficDistribution 설정"
+      }
+    },
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "elasticache",
+        "ref": "sessions",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1
+        }
+      },
+      "route": "external",
+      "facts": {
+        "route": "external",
+        "targetKind": "elasticache",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "partial",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "elasticache-cross-az",
+      "reason": "pod↔다른 AZ의 ElastiCache 노드. EC2 쪽만 $0.01/GB씩 과금",
+      "sourceUrl": "https://aws.amazon.com/elasticache/pricing/",
+      "rateGb": 0.01,
+      "ruleConfidence": "high",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "low",
+      "confidenceNote": "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음",
+      "fix": {
+        "kind": "relocate",
+        "description": "읽기는 같은 AZ 리플리카로(클라이언트 AZ affinity), 노드를 호출자 AZ에 맞춰 배치"
+      }
+    },
+    {
+      "source": {
+        "namespace": "grpc",
+        "name": "lb-5c8d212e1b8b",
+        "kind": "nlb",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "grpc/ledger-api",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "nlb-zonal",
+      "facts": {
+        "route": "nlb-zonal",
+        "targetKind": "service",
+        "scheme": "internal",
+        "targetType": "ip",
+        "externalTrafficPolicy": "Cluster",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "nlb-client-cross-az",
+      "reason": "cross-zone을 꺼도 VPC 내부 클라이언트가 DNS로 다른 AZ의 NLB 노드 IP를 받으면 과금. 클라이언트 위치·DNS 라우팅 정책에 좌우됨",
+      "sourceUrl": "https://aws.amazon.com/blogs/networking-and-content-delivery/exploring-data-transfer-costs-for-aws-network-load-balancers/",
+      "rateGb": 0.02,
+      "ruleConfidence": "low",
+      "bytesPerMo": 400000000000,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "low",
+      "confidenceNote": "판정 신뢰도 low: 금액 생략",
+      "fix": {
+        "kind": "zonal-dns",
+        "description": "클러스터 내부 호출이면 NLB 대신 ClusterIP + trafficDistribution 사용, 또는 NLB dns_record.client_routing_policy=availability_zone_affinity"
+      }
+    },
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "service",
+        "ref": "monitoring/node-exporter",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "route": "clusterip",
+      "facts": {
+        "route": "clusterip",
+        "targetKind": "service",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "k8s",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "clusterip-cross-az",
+      "reason": "kube-proxy가 AZ와 무관하게 엔드포인트를 고름. 다른 AZ pod로 가는 몫이 양쪽 $0.01/GB씩 과금",
+      "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
+      "rateGb": 0.02,
+      "ruleConfidence": "high",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "low",
+      "confidenceNote": "엔드포인트 pod 메트릭 없음",
+      "fix": {
+        "kind": "PreferClose",
+        "description": "Service에 trafficDistribution 설정 (k8s 1.31-1.33: PreferClose, 1.34+: PreferSameZone — 같은 의미)",
+        "command": "kubectl patch svc -n monitoring node-exporter --type=merge \\\n  -p '{\"spec\":{\"trafficDistribution\":\"PreferClose\"}}'"
+      }
+    },
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "msk",
+        "ref": "events-msk",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2b": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "external",
+      "facts": {
+        "route": "external",
+        "targetKind": "msk",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "full",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "msk-client-cross-az",
+      "reason": "클라이언트↔다른 AZ 브로커 전송은 표준 요금. 공식 확인된 것은 클라이언트(EC2) 쪽 — 하한으로 계산",
+      "sourceUrl": "https://aws.amazon.com/msk/pricing/",
+      "rateGb": 0.01,
+      "ruleConfidence": "medium",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "low",
+      "confidenceNote": "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음",
+      "fix": {
+        "kind": "relocate",
+        "description": "컨슈머에 client.rack=<AZ ID> 설정(follower fetching, replica.selector.class=RackAwareReplicaSelector)"
+      }
+    },
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "rds",
+        "ref": "ledger",
+        "azDist": {
+          "ap-northeast-2a": 1,
+          "ap-northeast-2c": 1
+        }
+      },
+      "route": "external",
+      "facts": {
+        "route": "external",
+        "targetKind": "rds",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "partial",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "rds-cross-az",
+      "reason": "pod↔다른 AZ의 RDS/Aurora 인스턴스(프라이머리·리플리카 모두). EC2 쪽만 $0.01/GB씩 과금",
+      "sourceUrl": "https://aws.amazon.com/rds/pricing/",
+      "rateGb": 0.01,
+      "ruleConfidence": "high",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "low",
+      "confidenceNote": "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음",
+      "fix": {
+        "kind": "relocate",
+        "description": "읽기 트래픽은 같은 AZ 리플리카로 보내고, 쓰기 경로가 큰 워크로드는 프라이머리 AZ에 배치 검토"
+      }
+    },
+    {
+      "source": {
+        "name": "*",
+        "kind": "cluster",
+        "azDist": {
+          "ap-northeast-2a": 8,
+          "ap-northeast-2b": 8,
+          "ap-northeast-2c": 8
+        }
+      },
+      "dest": {
+        "kind": "rds",
+        "ref": "orders-db",
+        "azDist": {
+          "ap-northeast-2a": 1
+        }
+      },
+      "route": "external",
+      "facts": {
+        "route": "external",
+        "targetKind": "rds",
+        "traffic": "client",
+        "sameVpc": true,
+        "privateIp": true,
+        "azSpread": "multi",
+        "zoneCoverage": "partial",
+        "topologyHints": false,
+        "zoneLocal": false,
+        "evidence": "aws",
+        "hintsConfigured": false,
+        "directIngressBackend": false
+      },
+      "billable": true,
+      "ruleId": "rds-cross-az",
+      "reason": "pod↔다른 AZ의 RDS/Aurora 인스턴스(프라이머리·리플리카 모두). EC2 쪽만 $0.01/GB씩 과금",
+      "sourceUrl": "https://aws.amazon.com/rds/pricing/",
+      "rateGb": 0.01,
+      "ruleConfidence": "high",
+      "bytesPerMo": null,
+      "crossAzFraction": 0.6666666666666667,
+      "costPerMo": null,
+      "confidence": "low",
+      "confidenceNote": "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음",
+      "fix": {
+        "kind": "relocate",
+        "description": "읽기 트래픽은 같은 AZ 리플리카로 보내고, 쓰기 경로가 큰 워크로드는 프라이머리 AZ에 배치 검토"
+      }
+    }
+  ],
+  "hidden": 5,
+  "thresholdUsd": 1,
+  "estimatedTotalUsd": 182.86666666666667,
+  "warnings": [
+    "추정 총액에 볼륨을 측정하지 못한 과금 경로 2개가 빠져 있음"
+  ],
+  "verify": {
+    "month": "2026-08",
+    "usageType": "APN2-DataTransfer-Regional-Bytes",
+    "estimatedUsd": 182.86666666666667,
+    "actualUsd": 171.38,
+    "ratio": 1.0670245458435446,
+    "note": "제외 규칙이 대체로 맞음"
+  }
+}

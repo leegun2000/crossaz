@@ -1,0 +1,172 @@
+{
+  "cluster": "dev-b",
+  "region": "ap-northeast-2",
+  "serverVersion": "v1.32.9-eks-1a2b3c4",
+  "kubeProxyVersion": "v1.32.6-eksbuild.2",
+  "nodes": [
+    {
+      "name": "node-7ad628e08fda",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-7b16ad9aab909bef6"
+    },
+    {
+      "name": "node-65d4384fc248",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-f718f9e8da00d942d"
+    },
+    {
+      "name": "node-e0105840c825",
+      "zone": "ap-northeast-2a",
+      "region": "ap-northeast-2",
+      "instanceId": "i-6054e7ea9aae67542"
+    }
+  ],
+  "services": [
+    {
+      "namespace": "default",
+      "name": "kubernetes",
+      "type": "ClusterIP",
+      "clusterIP": "10.126.28.103",
+      "endpoints": [
+        {
+          "ip": "10.21.65.147",
+          "ready": true
+        },
+        {
+          "ip": "10.210.172.81",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "kube-system",
+      "name": "kube-dns",
+      "type": "ClusterIP",
+      "clusterIP": "10.62.196.3",
+      "endpoints": [
+        {
+          "ip": "10.70.124.177",
+          "podName": "coredns-b84b41b78-rr628",
+          "nodeName": "node-65d4384fc248",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.245.0.123",
+          "podName": "coredns-b84b41b78-nn2tt",
+          "nodeName": "node-e0105840c825",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "web",
+      "name": "api",
+      "type": "ClusterIP",
+      "clusterIP": "10.206.68.15",
+      "endpoints": [
+        {
+          "ip": "10.42.74.135",
+          "podName": "api-2429c2b62-wc9hx",
+          "nodeName": "node-e0105840c825",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.165.141.112",
+          "podName": "api-2429c2b62-v9ppw",
+          "nodeName": "node-7ad628e08fda",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    },
+    {
+      "namespace": "web",
+      "name": "frontend",
+      "type": "ClusterIP",
+      "clusterIP": "10.23.139.104",
+      "endpoints": [
+        {
+          "ip": "10.107.50.61",
+          "podName": "frontend-43ea3b023-zg9zj",
+          "nodeName": "node-65d4384fc248",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        },
+        {
+          "ip": "10.65.74.222",
+          "podName": "frontend-43ea3b023-5rrfv",
+          "nodeName": "node-7ad628e08fda",
+          "zone": "ap-northeast-2a",
+          "ready": true
+        }
+      ]
+    }
+  ],
+  "pods": [
+    {
+      "namespace": "kube-system",
+      "name": "coredns-b84b41b78-nn2tt",
+      "nodeName": "node-e0105840c825",
+      "ip": "10.245.0.123",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "coredns-b84b41b78"
+    },
+    {
+      "namespace": "kube-system",
+      "name": "coredns-b84b41b78-rr628",
+      "nodeName": "node-65d4384fc248",
+      "ip": "10.70.124.177",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "coredns-b84b41b78"
+    },
+    {
+      "namespace": "web",
+      "name": "api-2429c2b62-v9ppw",
+      "nodeName": "node-7ad628e08fda",
+      "ip": "10.165.141.112",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-2429c2b62"
+    },
+    {
+      "namespace": "web",
+      "name": "api-2429c2b62-wc9hx",
+      "nodeName": "node-e0105840c825",
+      "ip": "10.42.74.135",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "api-2429c2b62"
+    },
+    {
+      "namespace": "web",
+      "name": "frontend-43ea3b023-5rrfv",
+      "nodeName": "node-7ad628e08fda",
+      "ip": "10.65.74.222",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "frontend-43ea3b023"
+    },
+    {
+      "namespace": "web",
+      "name": "frontend-43ea3b023-zg9zj",
+      "nodeName": "node-65d4384fc248",
+      "ip": "10.107.50.61",
+      "ownerKind": "ReplicaSet",
+      "ownerName": "frontend-43ea3b023"
+    }
+  ],
+  "ingresses": [],
+  "ingressClasses": [
+    {
+      "name": "alb",
+      "controller": "ingress.k8s.aws/alb",
+      "isDefault": true
+    },
+    {
+      "name": "nginx",
+      "controller": "k8s.io/ingress-nginx"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+Cluster: stage-c   Region: ap-northeast-2   AZs: 3   Nodes: 9   Layers: L0
+Exposure: LIKELY
+
+BILLABLE
+SERVICE                ROUTE        RECV/mo   AZ SPREAD   EST $/mo   CONF   FIX
+cache/redis            clusterip    ?         1/3         ?          high   topologySpread
+events/kafka           headless     ?         3/3 even    ?          high   relocate
+kube-system/kube-dns   clusterip    ?         2/3 even    ?          high   topologySpread
+payments/api           clusterip    ?         3/3 even    ?          high   PreferClose
+shop/storefront        alb (inst)   ?         3/3 even    ?          med    PreferClose
+
+NOT BILLABLE
+SERVICE          ROUTE       RECV/mo   AZ SPREAD   EST $/mo   CONF   NOTE
+ingress/web      alb (ip)    —         3/3 even    —          med    alb-ip-target-mode
+marketing/site   alb (ip)    —         3/3 even    —          med    alb-ip-target-mode
+orders/api       clusterip   —         3/3 even    —          med    topology-aware-routing
+
+UNCERTAIN
+SERVICE            ROUTE            RECV/mo   AZ SPREAD   EST $/mo   CONF   NOTE
+admin/console      clusterip        —         3/3 even    —          low    ingress-direct-backend
+edge/gateway       nlb (ip)         ?         3/3 even    ?          low    nlb-cross-zone-unknown
+edge/relay         nlb-zonal (ip)   —         3/3 even    —          low    unclassified
+notify/worker      clusterip        ?         3/3 even    ?          low    hints-unverified
+partners/webhook   alb (ip)         ?         3/3 even    ?          low    lb-exemption-unverified
+
+Estimated total: ? (L2 없음 — --prometheus-url)
+Run `crossaz explain cache/redis` for rule details.
+
+WARNINGS
+  - L1: AWS 자격증명을 찾지 못해 L0만 실행
