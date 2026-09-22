@@ -1,0 +1,223 @@
+[
+  {
+    "GroupDefinitions": [
+      {
+        "Type": "DIMENSION",
+        "Key": "USAGE_TYPE"
+      },
+      {
+        "Type": "DIMENSION",
+        "Key": "OPERATION"
+      }
+    ],
+    "ResultsByTime": [
+      {
+        "TimePeriod": {
+          "Start": "2026-09-08",
+          "End": "2026-09-09"
+        },
+        "Total": {},
+        "Groups": [
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-In"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "1.2034",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "120.34",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-Out"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "1.1966",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "119.66",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "PublicIP-In"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.05",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "5",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-BoxUsage:m6i.large",
+              "RunInstances"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "2.3712",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "24",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-DataTransfer-xAZ-In-Bytes",
+              "Unknown"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "310.5",
+                "Unit": "GB"
+              }
+            }
+          }
+        ],
+        "Estimated": false
+      },
+      {
+        "TimePeriod": {
+          "Start": "2026-09-09",
+          "End": "2026-09-10"
+        },
+        "Total": {},
+        "Groups": [
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-In"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "1.31",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "131",
+                "Unit": "GB"
+              }
+            }
+          }
+        ],
+        "Estimated": false
+      }
+    ],
+    "DimensionValueAttributes": [],
+    "NextPageToken": "AAEAAQ-page-2"
+  },
+  {
+    "GroupDefinitions": [
+      {
+        "Type": "DIMENSION",
+        "Key": "USAGE_TYPE"
+      },
+      {
+        "Type": "DIMENSION",
+        "Key": "OPERATION"
+      }
+    ],
+    "ResultsByTime": [
+      {
+        "TimePeriod": {
+          "Start": "2026-09-09",
+          "End": "2026-09-10"
+        },
+        "Total": {},
+        "Groups": [
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-Out"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "1.29",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "129",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "LB-PublicIP-Out"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.02",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "2",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-VpcPeering-In-Bytes",
+              "VPCPeering"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.4",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "40",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-DataTransfer-xAZ-Out-Bytes",
+              "Unknown"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "298.1",
+                "Unit": "GB"
+              }
+            }
+          }
+        ],
+        "Estimated": false
+      }
+    ],
+    "DimensionValueAttributes": []
+  }
+]

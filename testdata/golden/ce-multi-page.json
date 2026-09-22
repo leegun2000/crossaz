@@ -1,0 +1,78 @@
+{
+  "from": "2026-09-08T00:00:00Z",
+  "to": "2026-09-22T00:00:00Z",
+  "lines": [
+    {
+      "day": "2026-09-08T00:00:00Z",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "InterZone-In",
+      "family": "interzone",
+      "usd": 1.2034,
+      "gb": 120.34
+    },
+    {
+      "day": "2026-09-08T00:00:00Z",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "InterZone-Out",
+      "family": "interzone",
+      "usd": 1.1966,
+      "gb": 119.66
+    },
+    {
+      "day": "2026-09-08T00:00:00Z",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "PublicIP-In",
+      "family": "publicip",
+      "usd": 0.05,
+      "gb": 5
+    },
+    {
+      "day": "2026-09-08T00:00:00Z",
+      "usageType": "APN2-DataTransfer-xAZ-In-Bytes",
+      "operation": "Unknown",
+      "family": "xaz-free",
+      "usd": 0,
+      "gb": 310.5
+    },
+    {
+      "day": "2026-09-09T00:00:00Z",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "InterZone-In",
+      "family": "interzone",
+      "usd": 1.31,
+      "gb": 131
+    },
+    {
+      "day": "2026-09-09T00:00:00Z",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "InterZone-Out",
+      "family": "interzone",
+      "usd": 1.29,
+      "gb": 129
+    },
+    {
+      "day": "2026-09-09T00:00:00Z",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "LB-PublicIP-Out",
+      "family": "lb-publicip",
+      "usd": 0.02,
+      "gb": 2
+    },
+    {
+      "day": "2026-09-09T00:00:00Z",
+      "usageType": "APN2-VpcPeering-In-Bytes",
+      "operation": "VPCPeering",
+      "family": "vpcpeering",
+      "usd": 0.4,
+      "gb": 40
+    },
+    {
+      "day": "2026-09-09T00:00:00Z",
+      "usageType": "APN2-DataTransfer-xAZ-Out-Bytes",
+      "operation": "Unknown",
+      "family": "xaz-free",
+      "usd": 0,
+      "gb": 298.1
+    }
+  ]
+}

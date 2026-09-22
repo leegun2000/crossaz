@@ -23,7 +23,7 @@ func Rules(w io.Writer, rs model.RuleSet) error {
 	rows = append(rows, []string{"ID", "BILLABLE", "CONF", "RATE", "MATCH", "VERIFIED"})
 	for _, r := range rs.Rules {
 		rows = append(rows, []string{
-			r.ID, strconv.FormatBool(r.Billable), confLabel(r.Confidence),
+			r.ID, string(r.Billable), confLabel(r.Confidence),
 			ruleRate(r), matchSummary(r.Match), orUnverified(r.Verified),
 		})
 	}

@@ -11,6 +11,9 @@ import (
 	"github.com/leegun2000/crossaz/internal/model"
 )
 
+// WarnNoVPCs means L1 found none of the node instances: the credentials likely belong to another account or region.
+const WarnNoVPCs = "L1: 노드 인스턴스의 VPC를 찾지 못해 AWS 조회를 건너뜀"
+
 const (
 	snapLayerK8s    = "L0"
 	snapLayerAWS    = "L1"
@@ -18,7 +21,6 @@ const (
 	snapLayerCost   = "L3"
 
 	snapWarnNoInstanceIDs = "L1: 노드에 EC2 instance ID가 없어 AWS 조회를 건너뜀"
-	snapWarnNoVPCs        = "L1: 노드 인스턴스의 VPC를 찾지 못해 AWS 조회를 건너뜀"
 	snapWarnNoRegion      = "L3: 리전을 알 수 없어 Cost Explorer 조회를 건너뜀"
 	snapWarnVolumeNoMatch = "L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터, cAdvisor 메트릭 누락, 또는 수집한 지 10분 미만"
 )
@@ -84,25 +86,27 @@ func WithAWS(ctx context.Context, s model.Snapshot, a AWSCollector) model.Snapsh
 		out.Warnings = snapAppendWarnings(s.Warnings, snapWarnNoInstanceIDs)
 		return out
 	}
-	vpcs, err := a.InstanceVPCs(ctx, ids)
+	vpcs, accounts, err := a.InstanceVPCs(ctx, ids)
 	if err != nil {
 		out.Warnings = snapAppendWarnings(s.Warnings, snapWarn(snapLayerAWS, "노드 인스턴스 VPC", err))
 		return out
 	}
 	vpcs = snapSortedUnique(vpcs)
 	if len(vpcs) == 0 {
-		out.Warnings = snapAppendWarnings(s.Warnings, snapWarnNoVPCs)
+		out.Warnings = snapAppendWarnings(s.Warnings, WarnNoVPCs)
 		return out
 	}
 	inv, warnings := snapInventory(ctx, a, vpcs, s.Services)
+	inv.Accounts = snapSortedUnique(accounts)
 	out.AWS = &inv
 	out.Warnings = snapAppendWarnings(s.Warnings, warnings...)
 	return out
 }
 
 // WithVolume returns a copy of s with L2 per-pod receive volume, or a warning on failure.
-// A result that matches none of the snapshot's endpoint pods is dropped, so it cannot pass for "measured 0".
-func WithVolume(ctx context.Context, s model.Snapshot, v VolumeCollector, window string) model.Snapshot {
+// A result that matches none of the snapshot's endpoint pods is dropped, so it cannot pass for "measured 0";
+// the warning names selector (the --prom-selector text, "" if none) as another possible cause.
+func WithVolume(ctx context.Context, s model.Snapshot, v VolumeCollector, window, selector string) model.Snapshot {
 	out := s
 	out.Volume = nil
 	recv, err := v.PodRecvBytesPerSecond(ctx, window)
@@ -111,11 +115,18 @@ func WithVolume(ctx context.Context, s model.Snapshot, v VolumeCollector, window
 		return out
 	}
 	if !snapVolumeMatchesEndpoints(s.Services, recv) {
-		out.Warnings = snapAppendWarnings(s.Warnings, snapWarnVolumeNoMatch)
+		out.Warnings = snapAppendWarnings(s.Warnings, snapWarnVolumeNoMatchFor(selector))
 		return out
 	}
 	out.Volume = &model.VolumeData{Window: window, RecvBytesPerS: recv}
 	return out
+}
+
+func snapWarnVolumeNoMatchFor(selector string) string {
+	if selector == "" {
+		return snapWarnVolumeNoMatch
+	}
+	return fmt.Sprintf("%s (--prom-selector %q 적용됨)", snapWarnVolumeNoMatch, selector)
 }
 
 // snapVolumeMatchesEndpoints reports whether recv has any ready endpoint pod, or there is no such pod to match.
@@ -135,20 +146,32 @@ func snapVolumeMatchesEndpoints(services []model.Service, recv map[string]float6
 	return !hasPodEndpoints
 }
 
-// WithCost returns a copy of s with L3 actual inter-AZ cost for the month, or a warning on failure.
-func WithCost(ctx context.Context, s model.Snapshot, c CostCollector, month time.Time) model.Snapshot {
+// WithBill returns a copy of s with the L3 daily bill for [from, to), filtered to the L1 accounts when known.
+// The bill's warnings move to the snapshot's; an unknown bill is kept (it is "모름", not missing), a failure only warns.
+func WithBill(ctx context.Context, s model.Snapshot, c BillCollector, from, to time.Time) model.Snapshot {
 	out := s
-	out.Cost = nil
+	out.Bill = nil
 	if s.Region == "" {
 		out.Warnings = snapAppendWarnings(s.Warnings, snapWarnNoRegion)
 		return out
 	}
-	cost, err := c.InterAZDataTransferUSD(ctx, s.Region, month)
+	var accounts []string
+	if s.AWS != nil {
+		accounts = s.AWS.Accounts
+	}
+	bill, err := c.DailyBill(ctx, s.Region, accounts, from, to)
 	if err != nil {
-		out.Warnings = snapAppendWarnings(s.Warnings, snapWarn(snapLayerCost, "inter-AZ 실제 비용", err))
+		out.Warnings = snapAppendWarnings(s.Warnings, snapWarn(snapLayerCost, "일별 청구", err))
 		return out
 	}
-	out.Cost = &cost
+	warnings := make([]string, 0, len(bill.Warnings))
+	for _, w := range bill.Warnings {
+		warnings = append(warnings, snapLayerCost+": "+w)
+	}
+	stored := bill
+	stored.Warnings = nil
+	out.Bill = &stored
+	out.Warnings = snapAppendWarnings(s.Warnings, warnings...)
 	return out
 }
 

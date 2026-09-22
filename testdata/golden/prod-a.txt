@@ -37,8 +37,8 @@ Run `crossaz explain payments/api` for rule details.
 
 VERIFY
   Estimated:  ~$183/mo
-  Actual:     $171/mo   (Cost Explorer APN2-DataTransfer-Regional-Bytes, 2026-08 — 계정·리전 전체)
-  Ratio:      1.07   제외 규칙이 대체로 맞음
+  Actual:     $165/mo   (Cost Explorer APN2-DataTransfer-Regional-Bytes InterZone, 2026-08-18..2026-08-31 14일 기준, 미확정 1일 포함(잠정) — 계정·리전 전체)
+  Ratio:      1.11   제외 규칙이 대체로 맞음
 
   Ratio > 1.5 → 제외 규칙 누락 의심
   Ratio < 0.5 → 클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심

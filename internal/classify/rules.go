@@ -87,6 +87,9 @@ func validateRule(i int, r model.Rule) []error {
 	if r.ID == "" {
 		errs = append(errs, fmt.Errorf("%s: id is required", name))
 	}
+	if r.Billable == "" {
+		errs = append(errs, fmt.Errorf(`%s: billable is required (true, false or "unknown")`, name))
+	}
 	if !slices.Contains(validLevels, r.Confidence) {
 		errs = append(errs, fmt.Errorf("%s: confidence must be high|medium|low, got %q", name, r.Confidence))
 	}

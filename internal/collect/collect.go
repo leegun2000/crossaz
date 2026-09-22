@@ -33,8 +33,8 @@ type K8sCollector interface {
 // AWSCollector reads AWS (L1). Implementations may only call Describe*/List*/Get* APIs,
 // enforced by the read-only client interfaces in readonly.go.
 type AWSCollector interface {
-	// InstanceVPCs returns the distinct VPC IDs of the given EC2 instances.
-	InstanceVPCs(ctx context.Context, instanceIDs []string) ([]string, error)
+	// InstanceVPCs returns the distinct sorted VPC IDs and owning accounts (reservation OwnerId) of the given EC2 instances.
+	InstanceVPCs(ctx context.Context, instanceIDs []string) (vpcs, accounts []string, err error)
 	// Subnets returns subnet ID -> subnet for the given VPCs.
 	Subnets(ctx context.Context, vpcIDs []string) (map[string]model.Subnet, error)
 	// IPZones resolves private IPs to AZs via network interfaces in the given VPCs. Only called for IPs lacking a zone.
@@ -55,8 +55,10 @@ type VolumeCollector interface {
 	PodRecvBytesPerSecond(ctx context.Context, window string) (map[string]float64, error)
 }
 
-// CostCollector reads actual cost (L3).
-type CostCollector interface {
-	// InterAZDataTransferUSD returns the unblended cost of inter-AZ data transfer for region in the calendar month containing month.
-	InterAZDataTransferUSD(ctx context.Context, region string, month time.Time) (model.CostData, error)
+// BillCollector reads the daily bill (L3). Implementations may only call ce:GetCostAndUsage.
+type BillCollector interface {
+	// DailyBill returns the in-scope data transfer lines of region for the UTC days [from, to), filtered to
+	// accounts (region only, with a warning, when empty). A bill Cost Explorer cannot tell is Unknown with a
+	// warning and a nil error, never $0; other failures are errors.
+	DailyBill(ctx context.Context, region string, accounts []string, from, to time.Time) (model.Bill, error)
 }

@@ -29,9 +29,9 @@ func validRuleSet() model.RuleSet {
 		DefaultRateGB: 0.02,
 		Regions:       map[string]model.RegionRate{"eu-west-1": {RateGB: 0.02}},
 		Rules: []model.Rule{
-			{ID: "a", Match: model.Match{Route: model.StringSet{"clusterip"}}, Billable: true, Confidence: model.High,
+			{ID: "a", Match: model.Match{Route: model.StringSet{"clusterip"}}, Billable: model.TriTrue, Confidence: model.High,
 				Fix: &model.FixTemplate{Kind: "PreferClose", Command: "kubectl -n {{.Namespace}} {{.Name}}"}},
-			{ID: "catch-all", Confidence: model.Low},
+			{ID: "catch-all", Billable: model.TriUnknown, Confidence: model.Low},
 		},
 	}
 }
@@ -56,13 +56,17 @@ func TestValidateRejectsBrokenRuleSets(t *testing.T) {
 		}, "catch-all"},
 		{"catch-all with false bool condition", func(rs model.RuleSet) model.RuleSet {
 			no := false
-			rs.Rules = []model.Rule{rs.Rules[0], {ID: "last", Confidence: model.Low, Match: model.Match{SameVPC: &no}}}
+			rs.Rules = []model.Rule{rs.Rules[0], {ID: "last", Billable: model.TriFalse, Confidence: model.Low, Match: model.Match{SameVPC: &no}}}
 			return rs
 		}, "catch-all"},
 		{"no rules", func(rs model.RuleSet) model.RuleSet {
 			rs.Rules = nil
 			return rs
 		}, "at least one rule"},
+		{"missing billable", func(rs model.RuleSet) model.RuleSet {
+			rs.Rules = []model.Rule{{ID: "a", Confidence: model.High}, rs.Rules[1]}
+			return rs
+		}, `rule[0] "a": billable is required (true, false or "unknown")`},
 		{"bad confidence", func(rs model.RuleSet) model.RuleSet {
 			rs.Rules = []model.Rule{{ID: "a", Confidence: "certain"}, rs.Rules[1]}
 			return rs
@@ -158,15 +162,18 @@ func TestLoad(t *testing.T) {
 		wantErr   string
 		wantRoute model.StringSet
 	}{
-		{"scalar string set", base + "- {id: a, match: {route: alb}, confidence: high}\n- {id: z, match: {}, confidence: low}\n", "", model.StringSet{"alb"}},
-		{"list string set", base + "- {id: a, match: {route: [alb, clb]}, confidence: high}\n- {id: z, match: {}, confidence: low}\n", "", model.StringSet{"alb", "clb"}},
-		{"hint and ingress bool keys", base + "- {id: a, match: {route: clusterip, hints_configured: true, direct_ingress_backend: false}, confidence: low}\n- {id: z, match: {}, confidence: low}\n", "", model.StringSet{"clusterip"}},
-		{"unknown match value", base + "- {id: a, match: {route: nlb-xz}, confidence: high}\n- {id: z, match: {}, confidence: low}\n", "invalid rules", nil},
+		{"scalar string set", base + "- {id: a, match: {route: alb}, billable: false, confidence: high}\n- {id: z, match: {}, billable: false, confidence: low}\n", "", model.StringSet{"alb"}},
+		{"list string set", base + "- {id: a, match: {route: [alb, clb]}, billable: false, confidence: high}\n- {id: z, match: {}, billable: false, confidence: low}\n", "", model.StringSet{"alb", "clb"}},
+		{"hint and ingress bool keys", base + "- {id: a, match: {route: clusterip, hints_configured: true, direct_ingress_backend: false}, billable: false, confidence: low}\n- {id: z, match: {}, billable: false, confidence: low}\n", "", model.StringSet{"clusterip"}},
+		{"unknown match value", base + "- {id: a, match: {route: nlb-xz}, billable: false, confidence: high}\n- {id: z, match: {}, billable: false, confidence: low}\n", "invalid rules", nil},
 		{"unknown rule key", base + "- {id: a, match: {}, confidence: low, severity: 3}\n", "parse rules", nil},
 		{"unknown match key", base + "- {id: a, match: {color: red}, confidence: low}\n", "parse rules", nil},
 		{"string set of wrong type", base + "- {id: a, match: {route: {x: 1}}, confidence: low}\n", "parse rules", nil},
 		{"malformed yaml", "rules: [", "parse rules", nil},
-		{"valid yaml, invalid rules", base + "- {id: a, match: {route: alb}, confidence: high}\n", "invalid rules", nil},
+		{"valid yaml, invalid rules", base + "- {id: a, match: {route: alb}, billable: false, confidence: high}\n", "invalid rules", nil},
+		{"billable unknown string", base + "- {id: a, match: {route: alb}, billable: unknown, confidence: high}\n- {id: z, match: {}, billable: \"false\", confidence: low}\n", "", model.StringSet{"alb"}},
+		{"billable other string", base + "- {id: a, match: {route: alb}, billable: maybe, confidence: high}\n- {id: z, match: {}, billable: false, confidence: low}\n", `billable must be true, false or "unknown"`, nil},
+		{"billable missing", base + "- {id: a, match: {route: alb}, confidence: high}\n- {id: z, match: {}, billable: false, confidence: low}\n", "billable is required", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -364,17 +371,35 @@ func TestEveryDefaultRuleHasACase(t *testing.T) {
 	}
 }
 
+func TestDefaultUnknownRules(t *testing.T) {
+	// Arrange
+	want := []string{"zone-unknown", "unclassified"}
+
+	// Act
+	var got []string
+	for _, r := range Default().Rules {
+		if r.Billable == model.TriUnknown {
+			got = append(got, r.ID)
+		}
+	}
+
+	// Assert
+	if !slices.Equal(got, want) {
+		t.Errorf("billable: unknown rules = %v, want %v", got, want)
+	}
+}
+
 func TestDefaultRuleVerdicts(t *testing.T) {
 	tests := []struct {
 		id         string
-		billable   bool
+		billable   model.Tri
 		confidence model.Level
 	}{
-		{"nodeport-hop-cross-az", true, model.Medium},
-		{"ingress-direct-backend", false, model.Low},
-		{"hints-unverified", true, model.Low},
-		{"hints-withheld", true, model.High},
-		{"lb-exemption-unverified", true, model.Low},
+		{"nodeport-hop-cross-az", model.TriTrue, model.Medium},
+		{"ingress-direct-backend", model.TriFalse, model.Low},
+		{"hints-unverified", model.TriTrue, model.Low},
+		{"hints-withheld", model.TriTrue, model.High},
+		{"lb-exemption-unverified", model.TriTrue, model.Low},
 	}
 	rules := Default().Rules
 	for _, tt := range tests {

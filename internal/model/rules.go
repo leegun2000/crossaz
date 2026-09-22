@@ -22,7 +22,7 @@ type RegionRate struct {
 type Rule struct {
 	ID         string       `json:"id"`
 	Match      Match        `json:"match"`
-	Billable   bool         `json:"billable"`
+	Billable   Tri          `json:"billable"`
 	RateGB     float64      `json:"rate_gb,omitempty"` // 0 = use region/default rate
 	Confidence Level        `json:"confidence"`
 	Reason     string       `json:"reason"`

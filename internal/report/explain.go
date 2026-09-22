@@ -47,7 +47,7 @@ func writeExplanation(b *bytes.Buffer, p model.Path, rule model.Rule) {
 	line("callers", fmt.Sprintf("%s/%s  %s", p.Source.Kind, p.Source.Name, zoneList(p.Source.AZDist)))
 	line("destination", zoneList(p.Dest.AZDist))
 	line("facts", factsLine(p.Facts))
-	line("rule", fmt.Sprintf("%s  (billable: %t, rule confidence: %s)", orDash(p.RuleID), p.Billable, orDash(string(p.RuleConfidence))))
+	line("rule", fmt.Sprintf("%s  (billable: %s, rule confidence: %s)", orDash(p.RuleID), p.Billable, orDash(string(p.RuleConfidence))))
 	line("reason", orDash(p.Reason))
 	line("source", sourceLine(p, rule))
 	line("estimate", estimateLine(p))

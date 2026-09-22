@@ -71,7 +71,7 @@ func TestExplainUnknownCostAndRuleFallbacks(t *testing.T) {
 	client.ConfidenceNote = "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음"
 	replication := uncertainPath()
 	replication.RuleID = "rds-multiaz-replication"
-	replication.Billable = false
+	replication.Billable = model.TriFalse
 	replication.Confidence = model.High
 	replication.Facts = model.Facts{Traffic: "replication"}
 	paths := []model.Path{client, replication}
@@ -89,6 +89,7 @@ func TestExplainUnknownCostAndRuleFallbacks(t *testing.T) {
 		"  source:      —  (verified 2026-09-01)\n",
 		"  estimate:    —\n",
 		"  confidence:  high\n",
+		"  rule:        rds-multiaz-replication  (billable: false, rule confidence: —)\n",
 	}
 	for _, w := range want {
 		if !strings.Contains(out, w) {
@@ -127,5 +128,19 @@ func TestExplainReturnsWriteError(t *testing.T) {
 	// Assert
 	if !errors.Is(err, errWrite) {
 		t.Errorf("Explain() error = %v, want wrapped %v", err, errWrite)
+	}
+}
+
+func TestExplainPrintsUnknownBillable(t *testing.T) {
+	// Arrange
+	p := unknownPath("ns/u", nil)
+	p.RuleConfidence = model.Low
+
+	// Act
+	out := renderExplain(t, "ns/u", []model.Path{p})
+
+	// Assert
+	if want := "  rule:        zone-unknown  (billable: unknown, rule confidence: low)\n"; !strings.Contains(out, want) {
+		t.Errorf("missing %q in:\n%s", want, out)
 	}
 }

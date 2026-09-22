@@ -1,0 +1,46 @@
+{
+  "from": "2026-09-08T00:00:00Z",
+  "to": "2026-09-22T00:00:00Z",
+  "lines": [
+    {
+      "day": "2026-09-20T00:00:00Z",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "InterZone-In",
+      "family": "interzone",
+      "usd": 1.5,
+      "gb": 150
+    },
+    {
+      "day": "2026-09-20T00:00:00Z",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "InterZone-Out",
+      "family": "interzone",
+      "usd": 1.5,
+      "gb": 150
+    },
+    {
+      "day": "2026-09-21T00:00:00Z",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "InterZone-In",
+      "family": "interzone",
+      "usd": 0.8,
+      "gb": 80,
+      "estimated": true
+    },
+    {
+      "day": "2026-09-21T00:00:00Z",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "InterZone-Out",
+      "family": "interzone",
+      "usd": 0.7,
+      "gb": 70,
+      "estimated": true
+    }
+  ],
+  "notFinal": [
+    "2026-09-21T00:00:00Z"
+  ],
+  "warnings": [
+    "계정을 몰라 LINKED_ACCOUNT 없이 REGION만으로 조회: 같은 리전의 다른 계정 청구가 섞일 수 있음"
+  ]
+}

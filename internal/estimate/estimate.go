@@ -36,7 +36,7 @@ func estimatePath(p model.Path, vol *model.VolumeData, idx podIndex) model.Path 
 	p.BytesPerMo = nil
 	p.CostPerMo = nil
 	switch {
-	case !p.Billable:
+	case p.Billable != model.TriTrue:
 		return withObservedBytes(p, vol, idx)
 	case p.Dest.Kind != model.TargetService:
 		p.Confidence = model.Low
@@ -74,8 +74,8 @@ func estimatePath(p model.Path, vol *model.VolumeData, idx podIndex) model.Path 
 	return p
 }
 
-// withObservedBytes shows how much a non-billable service path carries ("6 TB through the ALB, free").
-// Confidence and cost are untouched: the verdict does not depend on volume.
+// withObservedBytes shows how much a non-billable or unknown-billable service path carries ("6 TB through the
+// ALB, free"). Confidence and cost are untouched: the verdict does not depend on volume.
 func withObservedBytes(p model.Path, vol *model.VolumeData, idx podIndex) model.Path {
 	if vol == nil || p.Dest.Kind != model.TargetService {
 		return p

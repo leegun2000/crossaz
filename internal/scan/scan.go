@@ -11,8 +11,6 @@ import (
 	"github.com/leegun2000/crossaz/internal/model"
 )
 
-const noteLocalZone = "Local/Wavelength Zone 포함: 요율이 달라 금액 생략"
-
 // Options tune a scan.
 type Options struct {
 	Threshold float64 // billable paths with a known monthly cost below this (USD) are hidden
@@ -45,18 +43,19 @@ func analysisWarnings(s model.Snapshot, rs model.RuleSet, o Options, zones []str
 	return out
 }
 
-// withoutLocalZoneAmounts blanks the amount of billable paths that touch a Local/Wavelength Zone: its per-GB rate
-// is not the parent region's (billing-rules.md §1.2, §4 local-zone-rate). Paths already low keep their own note.
+// withoutLocalZoneAmounts blanks the amount of billable or unknown paths that touch a Local/Wavelength Zone: its
+// per-GB rate is not the parent region's (billing-rules.md §1.2, §4 local-zone-rate), so an unknown path's upper
+// bound would be too low. Paths already low keep their own note.
 func withoutLocalZoneAmounts(paths []model.Path, zones []string) []model.Path {
 	if len(zones) == 0 {
 		return paths
 	}
 	out := make([]model.Path, len(paths))
 	for i, p := range paths {
-		if p.Billable && p.Confidence != model.Low && (touches(p.Source.AZDist, zones) || touches(p.Dest.AZDist, zones)) {
+		if p.Billable != model.TriFalse && p.Confidence != model.Low && (touches(p.Source.AZDist, zones) || touches(p.Dest.AZDist, zones)) {
 			p.CostPerMo = nil
 			p.Confidence = model.Low
-			p.ConfidenceNote = noteLocalZone
+			p.ConfidenceNote = model.NoteLocalZone
 		}
 		out[i] = p
 	}

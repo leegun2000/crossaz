@@ -52,7 +52,7 @@ func Bytes(b float64) string {
 	return sign + strconv.FormatFloat(v, 'f', digits, 64) + " " + byteUnits[unit]
 }
 
-// USD formats a monthly cost: "~$56", "~$0.40", "?" (billable but unknown), "—" (not billable).
+// USD formats a monthly cost: "~$56", "~$0.40", "?" (billable or unknown-billable, amount unknown), "—" (not billable).
 func USD(v *float64, billable bool) string {
 	if !billable {
 		return notBilledMark
@@ -108,7 +108,7 @@ func routeLabel(p model.Path) string {
 
 func recvLabel(p model.Path) string {
 	if p.BytesPerMo == nil {
-		return placeholder(p.Billable)
+		return placeholder(p.Billable != model.TriFalse)
 	}
 	return Bytes(*p.BytesPerMo)
 }

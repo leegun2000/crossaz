@@ -17,6 +17,7 @@
 #   direct_ingress_backend  true|false  Service backs a non-ALB Ingress without service-upstream (dials pod IPs)
 # Validation rejects any other value.
 #
+# billable: true|false|unknown. unknown = verdict withheld: neither $0 nor billed, reported as a separate "미확정 $0–max" line.
 # rate_gb is USD per GB exchanged, all charged sides combined. 0/absent = region rate.
 # Inter-AZ is $0.01/GB charged on EACH side for EC2/ENI <-> EC2/ENI  =>  0.02.
 # RDS/ElastiCache/MSK: only the client (EC2) side is documented as charged  =>  0.01.
@@ -76,7 +77,7 @@ rules:
 
   - id: zone-unknown
     match: {az_spread: unknown}
-    billable: false
+    billable: unknown
     confidence: low
     reason: "목적지 AZ를 알 수 없음 (EndpointSlice zone 없음). AWS 자격증명이 있으면 IP→AZ로 해석"
 
@@ -312,6 +313,6 @@ rules:
   # ---------------------------------------------------------------- catch-all
   - id: unclassified
     match: {}
-    billable: false
+    billable: unknown
     confidence: low
     reason: "어떤 규칙에도 맞지 않음 — 판정 보류"

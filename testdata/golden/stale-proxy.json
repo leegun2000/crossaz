@@ -47,7 +47,7 @@
         "hintsConfigured": true,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "hints-withheld",
       "reason": "zone 라우팅을 설정했고 kube-proxy도 힌트를 쓰는 버전이지만 EndpointSlice에 힌트가 없음(topology-mode Auto가 AZ별 엔드포인트 부족·과부하 기준으로 힌트를 보류하는 경우 등). 힌트 없는 엔드포인트가 있으면 kube-proxy는 모든 엔드포인트로 분산",
       "sourceUrl": "https://kubernetes.io/docs/concepts/services-networking/topology-aware-routing/",
@@ -102,7 +102,7 @@
         "hintsConfigured": true,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "hints-unverified",
       "reason": "trafficDistribution/topology-mode가 설정돼 있지만 kube-proxy 버전을 확인할 수 없거나(대체 프록시 포함) 이 서비스의 힌트를 쓴다고 확인된 버전이 아니어서 zone-local 여부를 확인할 수 없음",
       "sourceUrl": "https://kubernetes.io/docs/concepts/services-networking/topology-aware-routing/",

@@ -1,0 +1,122 @@
+{
+  "region": "us-east-1",
+  "accounts": [
+    "111122223333"
+  ],
+  "metric": "UnblendedCost",
+  "from": "2026-09-11T00:00:00Z",
+  "to": "2026-09-14T00:00:00Z",
+  "lines": [
+    {
+      "day": "2026-09-11T00:00:00Z",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "InterZone-In",
+      "family": "interzone",
+      "usd": 1,
+      "gb": 100
+    },
+    {
+      "day": "2026-09-11T00:00:00Z",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "InterZone-Out",
+      "family": "interzone",
+      "usd": 1,
+      "gb": 100
+    },
+    {
+      "day": "2026-09-11T00:00:00Z",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "PublicIP-Out",
+      "family": "publicip",
+      "usd": 0.5,
+      "gb": 50
+    },
+    {
+      "day": "2026-09-11T00:00:00Z",
+      "usageType": "USE1-DataTransfer-xAZ-In-Bytes",
+      "operation": "Unknown",
+      "family": "xaz-free",
+      "usd": 0,
+      "gb": 30
+    },
+    {
+      "day": "2026-09-12T00:00:00Z",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "InterZone-In",
+      "family": "interzone",
+      "usd": 1,
+      "gb": 100
+    },
+    {
+      "day": "2026-09-12T00:00:00Z",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "InterZone-Out",
+      "family": "interzone",
+      "usd": 1,
+      "gb": 100
+    },
+    {
+      "day": "2026-09-12T00:00:00Z",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "PublicIP-Out",
+      "family": "publicip",
+      "usd": 0.5,
+      "gb": 50
+    },
+    {
+      "day": "2026-09-12T00:00:00Z",
+      "usageType": "USE1-DataTransfer-xAZ-In-Bytes",
+      "operation": "Unknown",
+      "family": "xaz-free",
+      "usd": 0,
+      "gb": 30
+    },
+    {
+      "day": "2026-09-13T00:00:00Z",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "InterZone-In",
+      "family": "interzone",
+      "usd": 1,
+      "gb": 100,
+      "estimated": true
+    },
+    {
+      "day": "2026-09-13T00:00:00Z",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "InterZone-Out",
+      "family": "interzone",
+      "usd": 1,
+      "gb": 100,
+      "estimated": true
+    },
+    {
+      "day": "2026-09-13T00:00:00Z",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "PublicIP-Out",
+      "family": "publicip",
+      "usd": 0.5,
+      "gb": 50,
+      "estimated": true
+    },
+    {
+      "day": "2026-09-13T00:00:00Z",
+      "usageType": "USE1-DataTransfer-xAZ-In-Bytes",
+      "operation": "Unknown",
+      "family": "xaz-free",
+      "usd": 0,
+      "gb": 30,
+      "estimated": true
+    },
+    {
+      "day": "2026-09-11T00:00:00Z",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "Mystery",
+      "family": "other",
+      "usd": 0.25,
+      "gb": 25
+    }
+  ],
+  "warnings": [
+    "모르는 operation \"Mystery\": family other로 분류(총액 포함)"
+  ]
+}

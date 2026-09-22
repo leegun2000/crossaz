@@ -1,0 +1,101 @@
+[
+  {
+    "GroupDefinitions": [
+      {
+        "Type": "DIMENSION",
+        "Key": "USAGE_TYPE"
+      },
+      {
+        "Type": "DIMENSION",
+        "Key": "OPERATION"
+      }
+    ],
+    "ResultsByTime": [
+      {
+        "TimePeriod": {
+          "Start": "2026-09-08",
+          "End": "2026-09-09"
+        },
+        "Total": {},
+        "Groups": [
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-In"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "1",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "100",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "NatGateway-Out"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.3",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "30",
+                "Unit": "GB"
+              }
+            }
+          }
+        ],
+        "Estimated": false
+      },
+      {
+        "TimePeriod": {
+          "Start": "2026-09-09",
+          "End": "2026-09-10"
+        },
+        "Total": {},
+        "Groups": [
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "NatGateway-Out"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.2",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "20",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "TransitGateway"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.1",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "10",
+                "Unit": "GB"
+              }
+            }
+          }
+        ],
+        "Estimated": false
+      }
+    ],
+    "DimensionValueAttributes": []
+  }
+]

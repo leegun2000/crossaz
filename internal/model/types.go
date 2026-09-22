@@ -206,7 +206,7 @@ type Path struct {
 	Facts  Facts     `json:"facts"`
 
 	// classify result
-	Billable       bool    `json:"billable"`
+	Billable       Tri     `json:"billable"`
 	RuleID         string  `json:"ruleId"`
 	Reason         string  `json:"reason"`
 	SourceURL      string  `json:"sourceUrl,omitempty"`
@@ -222,6 +222,10 @@ type Path struct {
 
 	Fix *Fix `json:"fix,omitempty"`
 }
+
+// NoteLocalZone is the ConfidenceNote of a path touching a Local/Wavelength Zone: the parent region's RateGB
+// does not apply there (billing-rules.md §1.2), so no amount or upper bound is computed from it.
+const NoteLocalZone = "Local/Wavelength Zone 포함: 요율이 달라 금액 생략"
 
 // Key is "namespace/name" for services, "kind/ref" otherwise. Used by `crossaz explain`.
 func (p Path) Key() string {
@@ -247,20 +251,23 @@ const (
 
 // ScanResult is the final output of a scan.
 type ScanResult struct {
-	Cluster   string        `json:"cluster"`
-	Region    string        `json:"region"`
-	Zones     []string      `json:"zones"`
-	NodeCount int           `json:"nodeCount"`
-	Layers    []string      `json:"layers"` // e.g. ["L0","L1","L2"]
-	Exposure  string        `json:"exposure"`
-	Paths     []Path        `json:"paths"`     // Billable && Confidence != low && not hidden, cost desc
-	Excluded  []Path        `json:"excluded"`  // !Billable && Confidence != low
-	Uncertain []Path        `json:"uncertain"` // Confidence == low
-	Hidden    int           `json:"hidden"`    // billable paths with known cost below threshold
-	Threshold float64       `json:"thresholdUsd"`
-	TotalUSD  *float64      `json:"estimatedTotalUsd"` // sum of known costs in Paths + hidden; nil if no volume layer
-	Warnings  []string      `json:"warnings,omitempty"`
-	Verify    *VerifyResult `json:"verify,omitempty"`
+	Cluster   string   `json:"cluster"`
+	Region    string   `json:"region"`
+	Zones     []string `json:"zones"`
+	NodeCount int      `json:"nodeCount"`
+	Layers    []string `json:"layers"` // e.g. ["L0","L1","L2"]
+	Exposure  string   `json:"exposure"`
+	Paths     []Path   `json:"paths"`     // Billable true && Confidence != low && not hidden, cost desc
+	Excluded  []Path   `json:"excluded"`  // Billable false && Confidence != low
+	Uncertain []Path   `json:"uncertain"` // Confidence == low, or Billable unknown
+	Hidden    int      `json:"hidden"`    // billable paths with known cost below threshold
+	Threshold float64  `json:"thresholdUsd"`
+	TotalUSD  *float64 `json:"estimatedTotalUsd"` // sum of known costs in Paths + hidden; nil if no volume layer
+	// UnconfirmedMaxUSD is what the Billable=unknown paths (in Uncertain) would cost if billable, never part of TotalUSD.
+	// nil if there are none or any of them has no measured volume.
+	UnconfirmedMaxUSD *float64      `json:"unconfirmedMaxUsd,omitempty"`
+	Warnings          []string      `json:"warnings,omitempty"`
+	Verify            *VerifyResult `json:"verify,omitempty"`
 }
 
 // Verify ratio bounds: outside them the estimate and the bill disagree enough to suspect the rules.
@@ -269,12 +276,14 @@ const (
 	VerifyRatioLow  = 0.5
 )
 
-// VerifyResult compares the estimate against Cost Explorer (L3).
+// VerifyResult compares the estimate against the Cost Explorer daily bill (L3).
 type VerifyResult struct {
-	Month        string   `json:"month"`     // YYYY-MM
-	UsageType    string   `json:"usageType"` // Cost Explorer usage types summed into ActualUSD
-	EstimatedUSD *float64 `json:"estimatedUsd"`
-	ActualUSD    float64  `json:"actualUsd"` // inter-AZ data transfer usage, whole account+region
-	Ratio        *float64 `json:"ratio"`     // estimated/actual; nil when either side unusable
-	Note         string   `json:"note"`
+	Window        string   `json:"window"`                  // closed UTC days of the bill, "YYYY-MM-DD..YYYY-MM-DD"
+	Days          int      `json:"days"`                    // days summed into ActualUSD
+	EstimatedDays int      `json:"estimatedDays,omitempty"` // of Days, not final (CE Estimated): ActualUSD is provisional
+	UsageType     string   `json:"usageType"`               // usage types of the InterZone lines summed into ActualUSD
+	EstimatedUSD  *float64 `json:"estimatedUsd"`
+	ActualUSD     *float64 `json:"actualUsd"` // InterZone lines per 30-day month, whole account+region; nil = unknown
+	Ratio         *float64 `json:"ratio"`     // estimated/actual; nil when either side unusable
+	Note          string   `json:"note"`
 }

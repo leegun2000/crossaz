@@ -40,7 +40,7 @@ EKS(VPC CNI) 클러스터에서 **실제로 청구되는** cross-AZ 트래픽 �
 }
 ```
 
-`--verify`(L3)를 쓸 때만 아래 권한을 추가합니다. **Cost Explorer API는 요청(페이지)당 $0.01이 청구됩니다.**
+`crossaz bill`과 `--verify`(L3)를 쓸 때만 아래 권한을 추가합니다. **Cost Explorer API는 요청(페이지)당 $0.01이 청구됩니다.** 일별 × usage type × operation 결과는 여러 페이지로 나뉠 수 있어 한 번 실행에 $0.01보다 많이 들 수 있습니다.
 
 ```json
 {
@@ -99,6 +99,7 @@ go install github.com/leegun2000/crossaz/cmd/crossaz@latest
 ```
 crossaz scan    [flags]
 crossaz explain <ns/name | kind/ref> [flags]
+crossaz bill    [--days N] [flags]
 crossaz rules   [--rules file]
 crossaz version
 ```
@@ -111,11 +112,13 @@ crossaz version
 | `--region` | 노드 `topology.kubernetes.io/region` → AWS 설정 | 리전 |
 | `--rules` | 내장 [`rules/rules.yaml`](rules/rules.yaml) | 규칙 파일로 **통째로** 교체 |
 | `--rate-gb` | 규칙·리전 요율 | 모든 과금 경로의 USD/GB(양쪽 합산)를 강제 |
+| `--days` | `14` | (bill 전용) 읽을 닫힌 UTC 일 수, 1–90. 벗어나면 종료 코드 2 |
 | `--threshold` | `1` | (scan) 월 추정액이 이 값(USD) 미만인 과금 경로는 숨기고 개수만 표시 |
-| `--json` | | (scan) `ScanResult` 전체를 JSON으로 출력 |
+| `--json` | | (scan) `ScanResult` 전체, (bill) `Bill`과 region·accounts·metric을 JSON으로 출력 |
 | `--prometheus-url` | | L2 볼륨 추정 (예: `http://localhost:9090`). basic auth 자격증명의 특수문자는 퍼센트 인코딩(`https://user:p%40ss@host`). 파싱할 수 없으면 `prometheus: base URL is invalid (percent-encode credentials)`로 실패하고, 어떤 오류·경고에도 사용자 이름·비밀번호를 남기지 않음 |
+| `--prom-selector` | | Prometheus 쿼리의 모든 vector selector에 덧붙일 PromQL 라벨 매처 (예: `'cluster="prod-a",job=~"kubelet\|cadvisor"'`, 중괄호 있어도 됨). 여러 클러스터를 한 Prometheus에 모을 때 이 클러스터로 좁힘. 문법이 틀리면(쉼표 누락, 닫히지 않은 문자열, 컴파일 안 되는 정규식 등) 요청 없이 위치를 알려 주고 종료 코드 2 |
 | `--prom-window` | `7d` | 볼륨을 평균할 기간(PromQL 기간, 5분 `rate` 스텝보다 짧으면 오류). pod가 더 짧게 살았거나 Prometheus 보존기간이 더 짧으면 있는 구간만 평균 |
-| `--verify` | | (scan 전용) L3: 전월 Cost Explorer 실제 비용과 대조. L1(AWS 인벤토리)을 얻지 못하면(자격증명 없음, 다른 계정 자격증명 등) 호출하지 않고 경고 |
+| `--verify` | | (scan 전용) L3: 최근 14개 닫힌 UTC 일의 Cost Explorer InterZone 라인과 대조(미확정 날 제외, 30일로 환산). L1(AWS 인벤토리)을 얻지 못하면(자격증명 없음, 다른 계정 자격증명 등) 호출하지 않고 경고 |
 | `--no-aws` | | L1 끄기 (Kubernetes만 사용) |
 | `--fixture <file>` | | 클러스터 대신 스냅샷 JSON을 입력으로 사용. `--prometheus-url`/`--verify`는 무시하고 경고 |
 | `--dump-fixture` | | (scan) 수집한 스냅샷을 익명화해 JSON으로 출력하고 종료 |
@@ -124,8 +127,10 @@ crossaz version
 ```sh
 crossaz scan                                    # L0 + L1 (자격증명 있으면)
 crossaz scan --prometheus-url http://localhost:9090 --verify
+crossaz scan --prometheus-url http://thanos:9090 --prom-selector 'cluster="prod-a"'   # 여러 클러스터가 모인 Prometheus
 crossaz explain payments/api                    # 판정 근거: facts, 매칭 규칙, 근거 URL, 조치 명령
 crossaz explain rds/orders-db                   # 서비스 밖 대상은 kind/ref
+crossaz bill --days 14                          # 일별 Cost Explorer 청구 워터폴 (계정·리전)
 crossaz rules                                   # 적용 중인 규칙 표
 ```
 
@@ -181,8 +186,8 @@ Run `crossaz explain payments/api` for rule details.
 
 VERIFY
   Estimated:  ~$183/mo
-  Actual:     $171/mo   (Cost Explorer APN2-DataTransfer-Regional-Bytes, 2026-08 — 계정·리전 전체)
-  Ratio:      1.07   제외 규칙이 대체로 맞음
+  Actual:     $165/mo   (Cost Explorer APN2-DataTransfer-Regional-Bytes InterZone, 2026-08-18..2026-08-31 14일 기준, 미확정 1일 포함(잠정) — 계정·리전 전체)
+  Ratio:      1.11   제외 규칙이 대체로 맞음
 
   Ratio > 1.5 → 제외 규칙 누락 의심
   Ratio < 0.5 → 클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심
@@ -230,6 +235,28 @@ Cluster: dev-b   AZs: 1   Nodes: 3
 Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습니다.
 ```
 
+`bill`은 노드 인스턴스를 소유한 계정(L1, `ec2:DescribeInstances`의 OwnerId)과 리전으로 좁힌 일별 Cost Explorer 청구를 family·방향별로 보여줍니다([`testdata/golden/bill.txt`](testdata/golden/bill.txt)).
+
+```
+$ crossaz bill
+Region: us-east-1   Accounts: 111122223333   Window: 2026-08-31..2026-09-13 (UTC, 14일)   Metric: UnblendedCost
+
+WATERFALL
+FAMILY      SIDE   USD      GB        $/GB
+interzone   In     $14.00   1400.00   0.0100
+interzone   Out    $14.00   1400.00   0.0100
+publicip    Out    $7.00    700.00    0.0100
+other       ?      $0.25    25.00     0.0100
+TOTAL              $35.25   3525.00   0.0100
+xaz-free    In     $0.00    420.00    0.0000
+xaz-free는 $0(PrivateLink/TGW/Client VPN)이라 TOTAL에서 제외
+미확정(Estimated) 날: 2026-09-13 — 금액이 바뀔 수 있음(TOTAL 포함)
+```
+
+- 범위: usage type이 `DataTransfer-Regional-Bytes`로 끝나는 라인(operation으로 `interzone`·`publicip`·`lb-publicip`, 모르는 operation은 `other` + 경고), `VpcPeering-In/Out-Bytes`(`vpcpeering`), `$0`인 `DataTransfer-xAZ-In/Out-Bytes`(`xaz-free`, TOTAL 제외).
+- Cost Explorer는 GroupBy를 2개까지만 받으므로(USAGE_TYPE, OPERATION) 계정별로 나누지 않습니다. 라인의 `account`는 계정이 하나일 때만 채웁니다.
+- L1이 없으면 REGION만으로 조회하고 경고합니다. 단, L1이 노드 VPC를 하나도 찾지 못하면(다른 계정/리전 자격증명) 조회하지 않고 종료 코드 1입니다. `AccessDenied`, `DataUnavailable`, 빈 결과는 `$0`이 아니라 "청구: 모름"으로 나옵니다.
+
 ---
 
 ## 레이어
@@ -240,8 +267,8 @@ Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습�
 |---|---|---|---|
 | **L0 토폴로지** | Kubernetes API (위 ClusterRole) | 노드 AZ 분포, 서비스 라우트(ALB Ingress·LB annotation·ClusterIP·headless), EndpointSlice AZ 분포·힌트, 과금 판정 | 항상 |
 | **L1 AWS 확인** | AWS 자격증명 + 위 IAM 정책 | LB 실제 scheme·cross-zone·target type·AZ, zone 없는 엔드포인트 IP→AZ(클러스터 VPC의 ENI만), RDS/ElastiCache/MSK 경로 | 자격증명이 있고 `--no-aws`가 아닐 때. 일부 LB 조회 실패는 그 LB만 빼고(annotation 근거로 폴백) 경고 |
-| **L2 볼륨 추정** | Prometheus (cAdvisor `container_network_receive_bytes_total`) | 월 수신 바이트 → 금액 | `--prometheus-url`. 결과에 이 클러스터의 엔드포인트 pod가 하나도 없으면(다른 클러스터, cAdvisor 누락, Prometheus가 수집한 지 10분 미만) L2 없음으로 처리하고 경고 |
-| **L3 자가 검증** | `ce:GetCostAndUsage` | 추정 대비 실제 비율 | `--verify` + L1 |
+| **L2 볼륨 추정** | Prometheus (cAdvisor `container_network_receive_bytes_total`) | 월 수신 바이트 → 금액 | `--prometheus-url`(+ 선택 `--prom-selector`). 결과에 이 클러스터의 엔드포인트 pod가 하나도 없으면(다른 클러스터, cAdvisor 누락, Prometheus가 수집한 지 10분 미만, 맞지 않는 `--prom-selector`) L2 없음으로 처리하고 경고 |
+| **L3 청구** | `ce:GetCostAndUsage` | 일별 청구 워터폴(`bill`), 추정 대비 실제 비율(`--verify`) | `bill`, 또는 `--verify` + L1 |
 | L4 실측 | VPC Flow Logs | 정밀 금액 | v1 범위 밖 |
 
 ### CONF와 섹션
@@ -254,15 +281,16 @@ Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습�
   - 과금 경로의 엔드포인트 AZ를 하나도 모르면 L2 유무와 무관하게 low, 금액 `?`
   - Local/Wavelength Zone에 닿는 과금 경로는 요율이 달라 low, 금액 `?`(수신량은 표시)
 - **섹션**
-  - `UNCERTAIN`: CONF가 low인 경로 (과금 여부와 무관)
+  - `UNCERTAIN`: CONF가 low이거나 과금 여부가 미확정(`billable: unknown`)인 경로
   - `NOT BILLABLE`: 비과금이고 low가 아닌 경로
   - `BILLABLE`: 나머지. 금액이 알려졌고 `--threshold` 미만이면 숨기고 개수만 표시(총액에는 포함)
   - 금액 내림차순(모르는 금액은 뒤), 나머지 섹션은 키 순. 비어 있는 섹션은 생략
 - **Exposure**
   - `LIKELY`: BILLABLE 경로가 있음(숨김 포함), 또는 규칙은 확실한데 추정 단계에서 UNCERTAIN으로 내려간 서비스 과금 경로가 있음(메트릭 없음·AZ 모름·Local Zone)
-  - `NONE`: 노드 AZ가 1개 이하이고 UNCERTAIN에도 과금 경로가 없음
+  - `NONE`: 노드 AZ가 1개 이하이고 UNCERTAIN에도 과금 또는 billable unknown 경로가 없음(EKS 컨트롤 플레인 ENI처럼 다른 AZ의 목적지가 있을 수 있음)
   - `UNLIKELY`: 그 외
 - **Estimated total**: L2가 있을 때 BILLABLE 경로(숨김 포함)의 알려진 금액 합. 위처럼 내려간 서비스 과금 경로 중 볼륨을 못 잰 것이 있으면 `WARNINGS`에 "추정 총액에 볼륨을 측정하지 못한 과금 경로 N개가 빠져 있음"
+- **미확정**: `billable: unknown` 경로는 $0(비과금)으로도, 총액으로도 세지 않고 `Estimated total` 아래 `미확정: $0–$X/mo` 줄로 따로 냅니다. X는 과금이라면 낼 금액의 상한(수신량 전부 × 경로 요율)이고, 볼륨을 못 잰 경로가 하나라도 있으면 `?`. JSON은 `unconfirmedMaxUsd`
 
 ---
 
@@ -275,7 +303,7 @@ Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습�
 | 규칙 ID | 판정 | 규칙 CONF | 요율 | 조치 |
 |---|---|---|---|---|
 | `same-az` | 비과금 | high | 리전 | |
-| `zone-unknown` | 비과금 | low | 리전 | |
+| `zone-unknown` | 미확정 | low | 리전 | |
 | `nlb-cross-zone` | **과금** | high | 리전 | `disable-nlb-xz` |
 | `nodeport-hop-cross-az` (ALB/CLB/NLB instance 타겟 + `externalTrafficPolicy: Cluster`, zone-local 아님) | **과금** | medium | 리전 | `PreferClose` |
 | `nlb-cross-zone-unknown` | **과금** | low | 리전 | |
@@ -294,9 +322,10 @@ Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습�
 | `rds-multiaz-replication`, `msk-inter-broker` | 비과금 | high | 리전 | |
 | `rds-cross-az`, `elasticache-cross-az` (EC2 쪽만) | **과금** | high (최종 low) | $0.01 | `relocate` |
 | `msk-client-cross-az` (공식 확인된 클라이언트 쪽만 — 하한) | **과금** | medium (최종 low) | $0.01 | `relocate` |
-| `unclassified` (catch-all) | 비과금 | low | 리전 | |
+| `unclassified` (catch-all) | 미확정 | low | 리전 | |
 
 - 요율 `리전` = 규칙에 `rate_gb`가 없어 리전 요율을 씁니다(내장 36개 리전 모두 $0.02/GB, 양쪽 합산). 비과금 규칙에는 적용되지 않습니다.
+- 판정 `billable`은 `true`/`false`/`unknown` 세 값입니다. JSON 출력에서는 문자열(`"true"`, `"false"`, `"unknown"`)입니다.
 - EKS Auto Mode: IngressClass controller `eks.amazonaws.com/alb`인 ALB와 `loadBalancerClass: eks.amazonaws.com/nlb`인 NLB는 target-type annotation이 없으면 ip 타겟으로 봅니다. ALB 판정은 셀프 관리 LBC(`ingress.k8s.aws/alb`)와 Auto Mode 컨트롤러를 모두 인식하고, IngressClass 이름이 아니라 controller로 가립니다(`alb`라는 이름은 그 IngressClass 객체가 없을 때만 ALB로 봄).
 - `PreferClose` 조치 명령은 컨트롤 플레인이 1.34 이상이면 같은 의미의 `PreferSameZone`으로 렌더링됩니다.
 - VPC 인터페이스 엔드포인트의 AZ 간 전송은 2022-04-01부터 무료라 판정 대상이 아닙니다.
@@ -372,8 +401,8 @@ sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) (
 - 서비스당 경로는 1개입니다. ALB Ingress가 가리키는 서비스는 `alb`, type=LoadBalancer 서비스는 NLB/CLB 경로로만 판정하며, 같은 서비스로 들어오는 클러스터 내부 ClusterIP 트래픽은 분리하지 않습니다(수신량에는 포함).
 - ALB Ingress 백엔드는 일반 서비스 백엔드와 `use-annotation` 액션(`alb.ingress.kubernetes.io/actions.<name>`의 `forwardConfig.targetGroups[].serviceName`, 레거시 `serviceName`)을 인식합니다. 가중치 forward·blue/green·Argo Rollouts canary가 여기에 해당합니다. 액션 JSON이 깨졌거나 타겟그룹 ARN만 있으면 서비스를 연결하지 못합니다.
 - 노드가 한 AZ에만 있고 ALB/CLB/cross-zone off NLB가 여러 AZ에 걸쳐 있어도 `same-az`로 봅니다. ALB/CLB → 노드는 무료이고 zonal NLB는 타겟 없는 AZ를 DNS에서 빼기 때문입니다. cross-zone이 켜졌거나 모르는 NLB만 L1에서 확인한 LB AZ를 호출자에 합칩니다(L1이 없으면 LB AZ를 모르므로 노드 AZ 기준).
-- `--verify`의 Actual은 **계정·리전 전체**의 inter-AZ 전송 비용(`DataTransfer-Regional-Bytes`)입니다. ELB·공인 IP·다른 클러스터·EC2가 모두 포함된 상한이므로 Ratio가 1보다 작게 나오는 것이 자연스럽습니다. L1이 없으면(자격증명 없음, 노드를 찾지 못한 다른 계정 자격증명 등) 다른 계정의 비율을 보여주지 않도록 L3를 건너뜁니다.
-- Prometheus 쿼리에 cluster 라벨 범위가 없습니다. 여러 클러스터를 담은 Prometheus(Thanos, AMP 등)면 같은 `namespace/pod` 이름이 다른 클러스터 값과 섞일 수 있습니다. 이 클러스터 pod가 결과에 **하나도** 없을 때만 경고하고 L2를 버리므로, 일부만 겹치는 혼입은 잡지 못합니다. 클러스터 하나로 범위가 좁혀진 엔드포인트를 쓰세요.
+- `--verify`의 Actual은 **계정·리전 전체**의 `DataTransfer-Regional-Bytes` 중 operation `InterZone-In/Out` 라인입니다(PublicIP·LB-PublicIP·VPC peering·$0 xAZ는 빼고, `Estimated` 날도 합해 30일로 환산하고 그 날 수를 `미확정 N일 포함(잠정)`으로 표시 — Cost Explorer는 달이 닫히기 전 모든 날을 Estimated로 둠). 다른 클러스터·EC2·ELB의 AZ 간 전송이 모두 포함된 상한이므로 Ratio가 1보다 작게 나오는 것이 자연스럽습니다. L1이 없으면(자격증명 없음, 노드를 찾지 못한 다른 계정 자격증명 등) 다른 계정의 비율을 보여주지 않도록 L3를 건너뜁니다.
+- `--prom-selector`가 없으면 Prometheus 쿼리에 cluster 라벨 범위가 없습니다. 여러 클러스터를 담은 Prometheus(Thanos, AMP 등)면 같은 `namespace/pod` 이름이 다른 클러스터 값과 섞일 수 있습니다. 이 클러스터 pod가 결과에 **하나도** 없을 때만 경고하고 L2를 버리므로, 일부만 겹치는 혼입은 잡지 못합니다. `--prom-selector 'cluster="…"'`로 이 클러스터를 지정하세요.
 - 응답 바이트는 호출자 서비스의 수신으로 귀속됩니다.
 - VPC CNI prefix delegation 환경에서 zone 없는 엔드포인트 IP는 ENI 조회로 AZ를 못 찾을 수 있음 (pod IP가 ENI의 개별 IP가 아니라 위임된 prefix 안에 있어 `addresses.private-ip-address` 필터에 걸리지 않음). EndpointSlice에 zone이 있는 엔드포인트(대부분)는 영향이 없습니다. ENI 조회는 클러스터 VPC 안으로 한정하고, ENI들이 서로 다른 AZ를 보고하는 IP는 AZ 모름으로 둡니다.
 
@@ -388,7 +417,7 @@ crossaz scan --dump-fixture > testdata/fixtures/x.json   # 익명화된 스냅�
 crossaz scan --fixture testdata/fixtures/x.json          # 클러스터 없이 재현
 ```
 
-`--dump-fixture`는 IP·노드 이름·인스턴스 ID·VPC/서브넷 ID·LB와 타겟그룹 이름/DNS를 sha256 기반으로 결정적으로 치환합니다(조인 보존, 사설/공인 IPv4·IPv6 구분 유지). 판정에 쓰지 않는 annotation은 버리고(LB/TG 속성 annotation은 cross-zone 값만 남김), 경고는 치환한 값을 바꾼 뒤 `<레이어>: <대상>: <redacted>`까지만 남겨 AWS/Kubernetes/HTTP 에러 원문(계정 ID, principal ARN, 이메일, 홈 경로 등)을 지웁니다. static pod의 mirror pod(owner가 Node)는 이름 끝의 노드 이름과 owner 이름도 같은 값으로 치환합니다. **클러스터 이름, 네임스페이스·서비스·pod·Ingress·owner 이름(그 외), RDS/ElastiCache/MSK 식별자, Cost Explorer `actualUsd`는 그대로 남으므로** 커밋 전에 확인하세요.
+`--dump-fixture`는 IP·노드 이름·인스턴스 ID·VPC/서브넷 ID·LB와 타겟그룹 이름/DNS를 sha256 기반으로 결정적으로 치환합니다(조인 보존, 사설/공인 IPv4·IPv6 구분 유지). 판정에 쓰지 않는 annotation은 버리고(LB/TG 속성 annotation은 cross-zone 값만 남김), 경고는 치환한 값을 바꾼 뒤 `<레이어>: <대상>: <redacted>`까지만 남겨 AWS/Kubernetes/HTTP 에러 원문(계정 ID, principal ARN, 이메일, 홈 경로 등)을 지웁니다. static pod의 mirror pod(owner가 Node)는 이름 끝의 노드 이름과 owner 이름도 같은 값으로 치환합니다. **클러스터 이름, 네임스페이스·서비스·pod·Ingress·owner 이름(그 외), RDS/ElastiCache/MSK 식별자, Cost Explorer 청구 라인(금액·usage type·operation)은 그대로 남으므로**(계정 ID는 치환) 커밋 전에 확인하세요.
 
 실제 클러스터 검증은 [`hack/e2e`](hack/e2e/README.md)에 있습니다. kind(3 AZ 라벨, 노드 6개)에 시나리오를 띄워 L0 판정, kube-proxy가 실제로 AZ를 넘기는 비율, Prometheus(cAdvisor) 볼륨 추정을 확인합니다(`hack/e2e/run.sh`, 약 10분, AWS 불필요).
 

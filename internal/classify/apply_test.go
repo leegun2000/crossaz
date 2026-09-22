@@ -15,14 +15,14 @@ func applyRuleSet() model.RuleSet {
 		DefaultRateGB: 0.05,
 		Regions:       map[string]model.RegionRate{"eu-west-1": {RateGB: 0.02}},
 		Rules: []model.Rule{
-			{ID: "fixed-rate", Match: model.Match{TargetKind: model.StringSet{"rds"}}, Billable: true, RateGB: 0.01,
+			{ID: "fixed-rate", Match: model.Match{TargetKind: model.StringSet{"rds"}}, Billable: model.TriTrue, RateGB: 0.01,
 				Confidence: model.High, Reason: "rds", Source: "https://rds",
 				Fix: &model.FixTemplate{Kind: "relocate", Description: "move", Command: "echo {{.Kind}} {{.Name}} {{.Namespace}}"}},
-			{ID: "region-rate", Match: model.Match{Route: model.StringSet{"clusterip"}}, Billable: true,
+			{ID: "region-rate", Match: model.Match{Route: model.StringSet{"clusterip"}}, Billable: model.TriTrue,
 				Confidence: model.High, Reason: "cip", Source: "https://cip",
 				Fix: &model.FixTemplate{Kind: "PreferClose", Description: "patch", Command: patchCommand}},
-			{ID: "free", Match: model.Match{Route: model.StringSet{"alb"}}, RateGB: 0.03, Confidence: model.High, Reason: "free"},
-			{ID: "catch-all", Confidence: model.Low, Reason: "?"},
+			{ID: "free", Billable: model.TriFalse, Match: model.Match{Route: model.StringSet{"alb"}}, RateGB: 0.03, Confidence: model.High, Reason: "free"},
+			{ID: "catch-all", Billable: model.TriUnknown, Confidence: model.Low, Reason: "?"},
 		},
 	}
 }
@@ -65,6 +65,7 @@ func TestApplyRatePrecedence(t *testing.T) {
 		{"region rate when rule has none", servicePathFor("a/b", model.RouteClusterIP, "k8s"), "eu-west-1", 0, 0.02},
 		{"default rate for unlisted region", servicePathFor("a/b", model.RouteClusterIP, "k8s"), "cn-north-1", 0, 0.05},
 		{"non-billable has zero rate even with override", servicePathFor("a/b", model.RouteALB, "aws"), "eu-west-1", 0.07, 0},
+		{"unknown-billable keeps the rate it would have if billable", servicePathFor("a/b", model.RouteNLB, "aws"), "eu-west-1", 0, 0.02},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -84,7 +85,7 @@ func TestApplyCopiesRuleVerdict(t *testing.T) {
 	got := applyOne(t, rdsPathFor("db"), model.Snapshot{}, 0)
 
 	// Assert
-	if !got.Billable || got.RuleID != "fixed-rate" || got.Reason != "rds" || got.SourceURL != "https://rds" || got.RuleConfidence != model.High {
+	if got.Billable != model.TriTrue || got.RuleID != "fixed-rate" || got.Reason != "rds" || got.SourceURL != "https://rds" || got.RuleConfidence != model.High {
 		t.Errorf("verdict = %+v", got)
 	}
 	want := &model.Fix{Kind: "relocate", Description: "move", Command: "echo rds db "}
@@ -150,8 +151,8 @@ func TestApplyCatchAllKeepsLowAndClearsStaleFix(t *testing.T) {
 	// Act
 	got := applyOne(t, p, model.Snapshot{}, 0)
 
-	// Assert
-	if got.RuleID != "catch-all" || got.Confidence != model.Low || got.Fix != nil || got.RateGB != 0 {
+	// Assert: the unknown catch-all replaces the stale rate with the default one
+	if got.RuleID != "catch-all" || got.Confidence != model.Low || got.Fix != nil || got.RateGB != 0.05 {
 		t.Errorf("got %+v", got)
 	}
 }

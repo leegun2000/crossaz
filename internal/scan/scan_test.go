@@ -314,8 +314,8 @@ func TestAnalyzeBlanksLocalZoneAmounts(t *testing.T) {
 				t.Fatalf("no app/api path in %d paths", len(paths))
 			}
 			p := paths[i]
-			if !p.Billable || p.BytesPerMo == nil || (p.CostPerMo != nil) != tt.wantCost {
-				t.Errorf("billable=%t bytes=%v cost=%v, want billable with bytes and cost known=%t", p.Billable, p.BytesPerMo, p.CostPerMo, tt.wantCost)
+			if p.Billable != model.TriTrue || p.BytesPerMo == nil || (p.CostPerMo != nil) != tt.wantCost {
+				t.Errorf("billable=%s bytes=%v cost=%v, want billable with bytes and cost known=%t", p.Billable, p.BytesPerMo, p.CostPerMo, tt.wantCost)
 			}
 			if p.Confidence != tt.wantConf || p.ConfidenceNote != tt.wantNote {
 				t.Errorf("confidence = %q (%q), want %q (%q)", p.Confidence, p.ConfidenceNote, tt.wantConf, tt.wantNote)
@@ -327,5 +327,26 @@ func TestAnalyzeBlanksLocalZoneAmounts(t *testing.T) {
 				t.Errorf("TotalUSD = %v, want known 0 without the Local Zone amount", r.TotalUSD)
 			}
 		})
+	}
+}
+
+func TestWithoutLocalZoneAmountsMarksUnknownPaths(t *testing.T) {
+	// Arrange: an unknown-billable path whose source sits in a Local Zone keeps the parent-region rate
+	zone := "us-west-2-lax-1a"
+	bytes := 50e9
+	unknown := model.Path{Billable: model.TriUnknown, Confidence: model.Medium, RateGB: 0.02, BytesPerMo: &bytes,
+		Source: model.Workload{AZDist: model.AZDistribution{zone: 1}}}
+	free := unknown
+	free.Billable = model.TriFalse
+
+	// Act
+	got := withoutLocalZoneAmounts([]model.Path{unknown, free}, []string{zone})
+
+	// Assert
+	if got[0].Confidence != model.Low || got[0].ConfidenceNote != model.NoteLocalZone {
+		t.Errorf("unknown path = %q (%q), want low with the Local Zone note", got[0].Confidence, got[0].ConfidenceNote)
+	}
+	if got[1].ConfidenceNote != "" || unknown.ConfidenceNote != "" {
+		t.Errorf("free path note = %q, input note = %q, want both untouched", got[1].ConfidenceNote, unknown.ConfidenceNote)
 	}
 }

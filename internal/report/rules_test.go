@@ -19,17 +19,17 @@ func smallRuleSet() model.RuleSet {
 		Regions:       map[string]model.RegionRate{"us-east-1": {RateGB: 0.02}, "eu-west-1": {RateGB: 0.02}},
 		Rules: []model.Rule{
 			{
-				ID: "alb-private-same-vpc", Confidence: model.High,
+				ID: "alb-private-same-vpc", Billable: model.TriFalse, Confidence: model.High,
 				Match:    model.Match{Route: model.StringSet{"alb", "clb"}, SameVPC: boolPtr(true)},
 				Source:   "https://aws.amazon.com/ec2/pricing/on-demand/",
 				Verified: "2026-09-14",
 			},
 			{
-				ID: "rds-cross-az", Billable: true, RateGB: 0.01, Confidence: model.Medium,
+				ID: "rds-cross-az", Billable: model.TriTrue, RateGB: 0.01, Confidence: model.Medium,
 				Match:  model.Match{TargetKind: model.StringSet{"rds"}, AZSpread: model.StringSet{"multi"}},
 				Source: "https://aws.amazon.com/rds/pricing/",
 			},
-			{ID: "unclassified", Confidence: model.Low},
+			{ID: "unclassified", Billable: model.TriUnknown, Confidence: model.Low},
 		},
 	}
 }
@@ -57,7 +57,7 @@ func TestRulesListsEveryRule(t *testing.T) {
 		{"ID ", []string{"BILLABLE", "CONF", "RATE", "MATCH", "VERIFIED"}},
 		{"alb-private-same-vpc ", []string{"false", "high", "region", "route=alb,clb same_vpc=true", "2026-09-14"}},
 		{"rds-cross-az ", []string{"true", "med", "$0.01", "target_kind=rds az_spread=multi", "unverified"}},
-		{"unclassified ", []string{"false", "low", "region", " * ", "unverified"}},
+		{"unclassified ", []string{"unknown", "low", "region", " * ", "unverified"}},
 	}
 	for _, r := range rows {
 		row := lineWith(t, out, r.prefix)

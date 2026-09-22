@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -94,19 +95,22 @@ func TestInstanceVPCs(t *testing.T) {
 		ids       []string
 		serve     func(*ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error)
 		want      []string
+		wantOwner []string
 		wantSizes []int
 		wantErr   string
 	}{
 		{
-			name: "chunks 450 IDs into filter calls of 200 and returns distinct sorted VPCs",
+			name: "chunks 450 IDs into filter calls of 200 and returns distinct sorted VPCs and owners",
 			ids:  awsTestIDs("i-", 450),
 			serve: func(in *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
 				vpc := chunkVPC[in.Filters[0].Values[0]]
 				return &ec2.DescribeInstancesOutput{Reservations: []ec2types.Reservation{
-					{Instances: []ec2types.Instance{{VpcId: aws.String(vpc)}, {VpcId: nil}}},
+					{OwnerId: aws.String("owner-" + vpc), Instances: []ec2types.Instance{{VpcId: aws.String(vpc)}, {VpcId: nil}}},
+					{Instances: []ec2types.Instance{{VpcId: aws.String(vpc)}}},
 				}}, nil
 			},
 			want:      []string{"vpc-a", "vpc-b"},
+			wantOwner: []string{"owner-vpc-a", "owner-vpc-b"},
 			wantSizes: []int{200, 200, 50},
 		},
 		{
@@ -114,11 +118,12 @@ func TestInstanceVPCs(t *testing.T) {
 			ids:  []string{"i-1", "i-2"},
 			serve: func(in *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
 				return awsTestPage(map[string]*ec2.DescribeInstancesOutput{
-					"":   {NextToken: aws.String("p2"), Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{{VpcId: aws.String("vpc-2")}}}}},
-					"p2": {Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{{VpcId: aws.String("vpc-1")}}}}},
+					"":   {NextToken: aws.String("p2"), Reservations: []ec2types.Reservation{{OwnerId: aws.String("222"), Instances: []ec2types.Instance{{VpcId: aws.String("vpc-2")}}}}},
+					"p2": {Reservations: []ec2types.Reservation{{OwnerId: aws.String("111"), Instances: []ec2types.Instance{{VpcId: aws.String("vpc-1")}}}}},
 				}, in.NextToken)
 			},
 			want:      []string{"vpc-1", "vpc-2"},
+			wantOwner: []string{"111", "222"},
 			wantSizes: []int{2, 2},
 		},
 		{name: "no instance IDs makes no call", wantSizes: []int{}},
@@ -136,13 +141,13 @@ func TestInstanceVPCs(t *testing.T) {
 			stub := &stubEC2{instances: tt.serve}
 
 			// Act
-			got, err := NewAWS(AWSClients{EC2: stub}).InstanceVPCs(t.Context(), tt.ids)
+			got, owners, err := NewAWS(AWSClients{EC2: stub}).InstanceVPCs(t.Context(), tt.ids)
 
 			// Assert
 			if tt.wantErr != "" {
 				awsTestAssertErr(t, err, tt.wantErr)
-			} else if err != nil || len(got) != len(tt.want) || (len(got) > 0 && !reflect.DeepEqual(got, tt.want)) {
-				t.Fatalf("InstanceVPCs = %v, %v; want %v", got, err, tt.want)
+			} else if err != nil || !slices.Equal(got, tt.want) || !slices.Equal(owners, tt.wantOwner) {
+				t.Fatalf("InstanceVPCs = %v, %v, %v; want %v, %v", got, owners, err, tt.want, tt.wantOwner)
 			}
 			if sizes := awsTestFilterSizes(t, stub.filters, "instance-id"); !reflect.DeepEqual(sizes, tt.wantSizes) {
 				t.Errorf("filter value counts = %v, want %v", sizes, tt.wantSizes)

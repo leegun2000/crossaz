@@ -1,0 +1,94 @@
+[
+  {
+    "GroupDefinitions": [
+      {
+        "Type": "DIMENSION",
+        "Key": "USAGE_TYPE"
+      },
+      {
+        "Type": "DIMENSION",
+        "Key": "OPERATION"
+      }
+    ],
+    "ResultsByTime": [
+      {
+        "TimePeriod": {
+          "Start": "2026-09-19",
+          "End": "2026-09-20"
+        },
+        "Total": {},
+        "Groups": [
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-In"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "1",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "100",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-Out"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "1",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "100",
+                "Unit": "GB"
+              }
+            }
+          }
+        ],
+        "Estimated": true
+      },
+      {
+        "TimePeriod": {
+          "Start": "2026-09-20",
+          "End": "2026-09-21"
+        },
+        "Total": {},
+        "Groups": [
+          {
+            "Keys": [
+              "APN2-BoxUsage:m5.large",
+              "RunInstances"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "2.28",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "24",
+                "Unit": "GB"
+              }
+            }
+          }
+        ],
+        "Estimated": true
+      },
+      {
+        "TimePeriod": {
+          "Start": "2026-09-21",
+          "End": "2026-09-22"
+        },
+        "Total": {},
+        "Groups": [],
+        "Estimated": true
+      }
+    ],
+    "DimensionValueAttributes": []
+  }
+]

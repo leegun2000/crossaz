@@ -36,7 +36,7 @@ func billablePath(ref string) model.Path {
 		Dest:           model.Target{Kind: model.TargetService, Ref: ref, AZDist: dist("a", "b", "c")},
 		Route:          model.RouteClusterIP,
 		Facts:          model.Facts{Route: model.RouteClusterIP, TargetKind: model.TargetService, AZSpread: "multi"},
-		Billable:       true,
+		Billable:       model.TriTrue,
 		RuleID:         "clusterip-cross-az",
 		RateGB:         0.02,
 		RuleConfidence: model.High,
@@ -121,7 +121,7 @@ func TestEstimateCrossAZFrac(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
 			p := billablePath("ns/svc")
-			p.Billable = false
+			p.Billable = model.TriFalse
 			p.Route, p.Facts.Route = tt.route, tt.route
 			p.Source.AZDist = tt.callers
 			p.Dest.AZDist = tt.dests
@@ -184,14 +184,25 @@ func TestEstimateVolumeAndConfidence(t *testing.T) {
 	}{
 		{
 			name:      "non-billable shows observed bytes but leaves cost nil and confidence unchanged",
-			path:      func() model.Path { p := billablePath("ns/svc"); p.Billable = false; return p },
+			path:      func() model.Path { p := billablePath("ns/svc"); p.Billable = model.TriFalse; return p },
 			snap:      model.Snapshot{Services: oneSvc, Volume: vol(map[string]float64{"ns/p1": 100})},
 			wantBytes: ptr(100 * ms),
 			wantConf:  model.High,
 		},
 		{
+			name: "unknown-billable shows observed bytes but no amount, like non-billable",
+			path: func() model.Path {
+				p := billablePath("ns/svc")
+				p.Billable, p.Confidence = model.TriUnknown, model.Low
+				return p
+			},
+			snap:      model.Snapshot{Services: oneSvc, Volume: vol(map[string]float64{"ns/p1": 100})},
+			wantBytes: ptr(100 * ms),
+			wantConf:  model.Low,
+		},
+		{
 			name:     "non-billable without metrics has no bytes",
-			path:     func() model.Path { p := billablePath("ns/svc"); p.Billable = false; return p },
+			path:     func() model.Path { p := billablePath("ns/svc"); p.Billable = model.TriFalse; return p },
 			snap:     model.Snapshot{Services: oneSvc, Volume: vol(map[string]float64{})},
 			wantConf: model.High,
 		},

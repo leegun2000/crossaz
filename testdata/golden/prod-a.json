@@ -50,7 +50,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "clusterip-cross-az",
       "reason": "kube-proxy가 AZ와 무관하게 엔드포인트를 고름. 다른 AZ pod로 가는 몫이 양쪽 $0.01/GB씩 과금",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
@@ -101,7 +101,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "headless-cross-az",
       "reason": "headless는 DNS로 pod IP에 직접 연결(kube-proxy 없음, trafficDistribution 무효). StatefulSet 복제가 AZ를 넘으면 과금",
       "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
@@ -149,7 +149,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "clusterip-cross-az-partial",
       "reason": "엔드포인트가 없는 AZ의 호출자는 항상 다른 AZ로 넘어감 (trafficDistribution으로도 해결 안 됨)",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
@@ -199,7 +199,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "clusterip-cross-az",
       "reason": "kube-proxy가 AZ와 무관하게 엔드포인트를 고름. 다른 AZ pod로 가는 몫이 양쪽 $0.01/GB씩 과금",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
@@ -255,7 +255,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "nodeport-hop-cross-az",
       "reason": "instance 타겟: LB→노드는 무료지만 kube-proxy가 다른 AZ 노드의 pod로 한 번 더 보내면 그 홉은 일반 inter-AZ 과금",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
@@ -310,7 +310,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "nlb-cross-zone",
       "reason": "NLB cross-zone이 켜진 타겟그룹은 LB 노드와 다른 AZ 타겟 사이 전송이 양쪽 끝에서 과금 (instance 모드면 kube-proxy 홉 추가)",
       "sourceUrl": "https://aws.amazon.com/elasticloadbalancing/faqs/",
@@ -367,7 +367,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "alb-private-same-vpc",
       "reason": "EC2↔ALB 사설 IP·동일 VPC 전송은 AZ와 무관하게 무료 (cross-zone 설정과 무관)",
       "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
@@ -417,7 +417,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "nlb-zonal-internet",
       "reason": "cross-zone off: LB 노드는 같은 AZ 타겟에만 전달. 인터넷→NLB 유입은 AZ 간 전송이 아님 (VPC 내부에서 공인 IP로 호출하면 별도 공인 IP 요금)",
       "sourceUrl": "https://aws.amazon.com/blogs/networking-and-content-delivery/exploring-data-transfer-costs-for-aws-network-load-balancers/",
@@ -467,7 +467,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "alb-ip-target-mode",
       "reason": "ALB→pod IP 직접 전송. EKS Best Practices는 IP 모드에 전송료 없음으로 설명하나, EC2 요금 문구는 'EC2 인스턴스'만 명시 → --verify로 대조 권장",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
@@ -517,7 +517,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "clb-private-same-vpc",
       "reason": "EC2↔Classic LB 사설 IP·동일 VPC 전송은 무료",
       "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
@@ -563,7 +563,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "msk-inter-broker",
       "reason": "MSK 브로커 간 복제는 요금에 포함",
       "sourceUrl": "https://aws.amazon.com/msk/pricing/",
@@ -620,7 +620,7 @@
         "hintsConfigured": true,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "topology-aware-routing",
       "reason": "kube-proxy가 같은 AZ 엔드포인트만 사용 (EndpointSlice 힌트가 모든 호출자 AZ를 덮음, 또는 internalTrafficPolicy: Local). 힌트가 제거되면 클러스터 전체로 폴백",
       "sourceUrl": "https://kubernetes.io/docs/concepts/services-networking/topology-aware-routing/",
@@ -664,7 +664,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "rds-multiaz-replication",
       "reason": "Multi-AZ 프라이머리↔스탠바이, 같은 리전 read replica, Aurora 클러스터 복제는 무료",
       "sourceUrl": "https://aws.amazon.com/rds/pricing/",
@@ -708,7 +708,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "rds-multiaz-replication",
       "reason": "Multi-AZ 프라이머리↔스탠바이, 같은 리전 read replica, Aurora 클러스터 복제는 무료",
       "sourceUrl": "https://aws.amazon.com/rds/pricing/",
@@ -755,7 +755,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "clusterip-cross-az-partial",
       "reason": "엔드포인트가 없는 AZ의 호출자는 항상 다른 AZ로 넘어감 (trafficDistribution으로도 해결 안 됨)",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
@@ -805,7 +805,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "elasticache-cross-az",
       "reason": "pod↔다른 AZ의 ElastiCache 노드. EC2 쪽만 $0.01/GB씩 과금",
       "sourceUrl": "https://aws.amazon.com/elasticache/pricing/",
@@ -860,7 +860,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "nlb-client-cross-az",
       "reason": "cross-zone을 꺼도 VPC 내부 클라이언트가 DNS로 다른 AZ의 NLB 노드 IP를 받으면 과금. 클라이언트 위치·DNS 라우팅 정책에 좌우됨",
       "sourceUrl": "https://aws.amazon.com/blogs/networking-and-content-delivery/exploring-data-transfer-costs-for-aws-network-load-balancers/",
@@ -911,7 +911,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "clusterip-cross-az",
       "reason": "kube-proxy가 AZ와 무관하게 엔드포인트를 고름. 다른 AZ pod로 가는 몫이 양쪽 $0.01/GB씩 과금",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
@@ -963,7 +963,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "msk-client-cross-az",
       "reason": "클라이언트↔다른 AZ 브로커 전송은 표준 요금. 공식 확인된 것은 클라이언트(EC2) 쪽 — 하한으로 계산",
       "sourceUrl": "https://aws.amazon.com/msk/pricing/",
@@ -1013,7 +1013,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "rds-cross-az",
       "reason": "pod↔다른 AZ의 RDS/Aurora 인스턴스(프라이머리·리플리카 모두). EC2 쪽만 $0.01/GB씩 과금",
       "sourceUrl": "https://aws.amazon.com/rds/pricing/",
@@ -1062,7 +1062,7 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": true,
+      "billable": "true",
       "ruleId": "rds-cross-az",
       "reason": "pod↔다른 AZ의 RDS/Aurora 인스턴스(프라이머리·리플리카 모두). EC2 쪽만 $0.01/GB씩 과금",
       "sourceUrl": "https://aws.amazon.com/rds/pricing/",
@@ -1086,11 +1086,13 @@
     "추정 총액에 볼륨을 측정하지 못한 과금 경로 2개가 빠져 있음"
   ],
   "verify": {
-    "month": "2026-08",
+    "window": "2026-08-18..2026-08-31",
+    "days": 14,
+    "estimatedDays": 1,
     "usageType": "APN2-DataTransfer-Regional-Bytes",
     "estimatedUsd": 182.86666666666667,
-    "actualUsd": 171.38,
-    "ratio": 1.0670245458435446,
+    "actualUsd": 165.0857142857143,
+    "ratio": 1.1077073958693897,
     "note": "제외 규칙이 대체로 맞음"
   }
 }

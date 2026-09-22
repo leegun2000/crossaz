@@ -188,7 +188,7 @@ func TestTextOutputsReplaceControlCharacters(t *testing.T) {
 			r.Paths = []model.Path{tainted()}
 			r.Uncertain = []model.Path{tainted()}
 			r.Warnings = []string{"L1: " + evil}
-			r.Verify.Month, r.Verify.UsageType, r.Verify.Note = evil, evil, evil
+			r.Verify.Window, r.Verify.UsageType, r.Verify.Note = evil, evil, evil
 			return Table(b, r)
 		}},
 		{"table with exposure none", func(b *bytes.Buffer) error {

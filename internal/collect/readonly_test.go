@@ -150,3 +150,19 @@ func TestForbiddenSelectorCheckDetectsMutatingCalls(t *testing.T) {
 		})
 	}
 }
+
+func TestCostExplorerReadOnlyDeclaresOnlyGetCostAndUsage(t *testing.T) {
+	// Arrange
+	typ := reflect.TypeFor[CostExplorerReadOnly]()
+
+	// Act
+	var names []string
+	for m := range typ.Methods() {
+		names = append(names, m.Name)
+	}
+
+	// Assert
+	if !slices.Equal(names, []string{"GetCostAndUsage"}) {
+		t.Errorf("CostExplorerReadOnly methods = %v, want only GetCostAndUsage (plan §3.3)", names)
+	}
+}

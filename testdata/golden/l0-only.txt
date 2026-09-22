@@ -20,10 +20,11 @@ UNCERTAIN
 SERVICE            ROUTE            RECV/mo   AZ SPREAD   EST $/mo   CONF   NOTE
 admin/console      clusterip        —         3/3 even    —          low    ingress-direct-backend
 edge/gateway       nlb (ip)         ?         3/3 even    ?          low    nlb-cross-zone-unknown
-edge/relay         nlb-zonal (ip)   —         3/3 even    —          low    unclassified
+edge/relay         nlb-zonal (ip)   ?         3/3 even    ?          low    unclassified
 partners/webhook   alb (ip)         ?         3/3 even    ?          low    lb-exemption-unverified
 
 Estimated total: ? (L2 없음 — --prometheus-url)
+미확정: $0–? (billable 미확정 경로 1개, 총액 제외)
 Run `crossaz explain cache/redis` for rule details.
 
 WARNINGS
