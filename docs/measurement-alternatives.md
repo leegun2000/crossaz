@@ -271,7 +271,7 @@ L3 verify: CE 월 합계(현행) → CUR 2.0 노드 × 시간 × operation(신�
 [nlb-logs]: https://docs.aws.amazon.com/elasticloadbalancing/latest/network/load-balancer-access-logs.html
 [otel-network]: https://github.com/open-telemetry/opentelemetry-network
 
-**코드 기준 참고** (/Users/orbis/Documents/GitHub/crossaz):
+**코드 기준 참고** (이 저장소):
 - `internal/collect/collect.go`: L0–L3 인터페이스
 - `internal/collect/readonly.go`: Describe/List/Get 가드. Athena 예외가 필요한 곳
 - `internal/collect/ce.go`: CE 월 합계. DAILY + OPERATION으로 바꿀 곳

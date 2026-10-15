@@ -236,13 +236,13 @@ billing-rules.md §5.3 표에서 2-AZ ALB 우회의 GB당 절감은 AZ 간 전�
 [athena-price]: https://aws.amazon.com/athena/pricing/
 [nodelocaldns]: https://kubernetes.io/docs/tasks/administer-cluster/nodelocaldns/
 [prom-storage]: https://prometheus.io/docs/prometheus/latest/storage/
-[billing-rules §1.1]: /Users/orbis/Documents/GitHub/crossaz/docs/billing-rules.md
-[billing-rules §1.2]: /Users/orbis/Documents/GitHub/crossaz/docs/billing-rules.md
-[billing-rules §1.3]: /Users/orbis/Documents/GitHub/crossaz/docs/billing-rules.md
-[billing-rules §1.4]: /Users/orbis/Documents/GitHub/crossaz/docs/billing-rules.md
-[billing-rules §2]: /Users/orbis/Documents/GitHub/crossaz/docs/billing-rules.md
-[billing-rules §3]: /Users/orbis/Documents/GitHub/crossaz/docs/billing-rules.md
-[billing-rules 부록 A]: /Users/orbis/Documents/GitHub/crossaz/docs/billing-rules.md
+[billing-rules §1.1]: billing-rules.md
+[billing-rules §1.2]: billing-rules.md
+[billing-rules §1.3]: billing-rules.md
+[billing-rules §1.4]: billing-rules.md
+[billing-rules §2]: billing-rules.md
+[billing-rules §3]: billing-rules.md
+[billing-rules 부록 A]: billing-rules.md
 
 [미조회] 표기 대상:
 - [cur-delivery]: 재작성 창은 measurement-alternatives.md에서 인용
@@ -250,7 +250,7 @@ billing-rules.md §5.3 표에서 2-AZ ALB 우회의 GB당 절감은 AZ 간 전�
 - EC2 On-Demand 요금 페이지: $0.01/GB 측당 요율은 billing-rules.md §1.1(2026-09-14 확인)에서 인용
 
 로컬 근거 파일:
-- /Users/orbis/Documents/GitHub/crossaz/rules/rules.yaml
-- /Users/orbis/Documents/GitHub/crossaz/docs/billing-rules.md
-- /Users/orbis/Documents/GitHub/crossaz/docs/measurement-alternatives.md
-- /Users/orbis/Documents/GitHub/crossaz/internal/collect/aws.go
+- rules/rules.yaml
+- docs/billing-rules.md
+- docs/measurement-alternatives.md
+- internal/collect/aws.go

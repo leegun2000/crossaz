@@ -962,15 +962,15 @@ date,amount,team,cluster
 ---
 
 **참고한 로컬 파일**
-- /Users/orbis/Documents/GitHub/crossaz/docs/team-allocation-landscape.md
-- /Users/orbis/Documents/GitHub/crossaz/internal/model/snapshot.go
-- /Users/orbis/Documents/GitHub/crossaz/cmd/crossaz/flags.go (v1은 `--json`만 있고 `--format` 없음)
-- /Users/orbis/Documents/GitHub/crossaz/docs/v2-eni-sufficiency.md
-- /Users/orbis/Documents/GitHub/crossaz/docs/billing-rules.md
-- /Users/orbis/Documents/GitHub/crossaz/docs/measurement-alternatives.md
-- /Users/orbis/Documents/GitHub/crossaz/docs/design.md
-- /Users/orbis/Documents/GitHub/crossaz/internal/collect/ce.go
-- /Users/orbis/Documents/GitHub/crossaz/internal/collect/collect.go
-- /Users/orbis/Documents/GitHub/crossaz/internal/model/types.go (VerifyRatioLow = 0.5, VerifyRatioHigh = 1.5)
-- /Users/orbis/Documents/GitHub/crossaz/internal/estimate/estimate.go (bytesPerGB = 1e9)
-- /Users/orbis/Documents/GitHub/crossaz/rules/rules.yaml
+- docs/team-allocation-landscape.md
+- internal/model/snapshot.go
+- cmd/crossaz/flags.go (v1은 `--json`만 있고 `--format` 없음)
+- docs/v2-eni-sufficiency.md
+- docs/billing-rules.md
+- docs/measurement-alternatives.md
+- docs/design.md
+- internal/collect/ce.go
+- internal/collect/collect.go
+- internal/model/types.go (VerifyRatioLow = 0.5, VerifyRatioHigh = 1.5)
+- internal/estimate/estimate.go (bytesPerGB = 1e9)
+- rules/rules.yaml
