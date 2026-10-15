@@ -1,8 +1,12 @@
 # crossaz
 
+[English](README.md) | 한국어
+
 EKS(VPC CNI) 클러스터에서 **실제로 청구되는** cross-AZ 트래픽 경로만 골라내고, 월 비용을 추정하고, 조치를 제시하는 read-only CLI.
 
 대부분의 도구는 "AZ를 넘으면 빨간색"으로 칠합니다. 그래서 ALB 뒤 서비스(사설 IP·동일 VPC 전송은 무료)를 누수로 잘못 잡고, 반대로 엔드포인트가 한 AZ에 몰린 서비스(다른 AZ 호출자는 전부 과금)는 놓칩니다. crossaz가 다른 점은 측정 정밀도가 아니라 **과금 판정**입니다. 경로마다 규칙([`rules/rules.yaml`](rules/rules.yaml))으로 과금 여부를 가리고, 판정마다 AWS 공식 문서 근거 URL을 붙입니다.
+
+> CLI 출력 메시지(판정 이유, 경고, 노트)는 영어입니다.
 
 ---
 
@@ -186,14 +190,14 @@ Run `crossaz explain payments/api` for rule details.
 
 VERIFY
   Estimated:  ~$183/mo
-  Actual:     $165/mo   (Cost Explorer APN2-DataTransfer-Regional-Bytes InterZone, 2026-08-18..2026-08-31 14일 기준, 미확정 1일 포함(잠정) — 계정·리전 전체)
-  Ratio:      1.11   제외 규칙이 대체로 맞음
+  Actual:     $165/mo   (Cost Explorer APN2-DataTransfer-Regional-Bytes InterZone, 2026-08-18..2026-08-31, 14 days, 1 day provisional (Estimated); whole account and region)
+  Ratio:      1.11   exclusion rules look broadly right
 
-  Ratio > 1.5 → 제외 규칙 누락 의심
-  Ratio < 0.5 → 클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심
+  Ratio > 1.5 → suspect a missing exclusion rule
+  Ratio < 0.5 → suspect leaks outside the cluster (RDS/MSK/NLB/other workloads)
 
 WARNINGS
-  - 추정 총액에 볼륨을 측정하지 못한 과금 경로 2개가 빠져 있음
+  - the estimated total leaves out 2 billable path(s) whose volume could not be measured
 ```
 
 읽는 법:
@@ -206,40 +210,40 @@ WARNINGS
 - `rds/orders-db`: 복제는 무료, 클라이언트 경로는 과금 규칙이지만 클러스터가 실제로 통신하는지·볼륨을 모르므로 `low`, 금액 `?`입니다.
 - `monitoring/node-exporter`: hostNetwork pod는 노드 전체 트래픽이 잡히므로 미측정으로 두고, 측정된 pod가 없어 `low`입니다.
 - `grpc/ledger-api`: cross-zone을 끈 내부 NLB. 클라이언트가 DNS로 다른 AZ의 NLB 노드를 받으면 과금되지만 DNS 라우팅에 좌우돼 `low`이므로 수신량만 보여주고 금액은 비웁니다.
-- `WARNINGS`의 "볼륨을 측정하지 못한 과금 경로 2개": `default/kubernetes`(pod 없는 엔드포인트)와 `monitoring/node-exporter`는 과금 규칙에 걸리지만 볼륨을 재지 못해 UNCERTAIN으로 갔고, 그만큼 총액이 빠졌다는 뜻입니다.
+- `WARNINGS`의 "leaves out 2 billable path(s)": `default/kubernetes`(pod 없는 엔드포인트)와 `monitoring/node-exporter`는 과금 규칙에 걸리지만 볼륨을 재지 못해 UNCERTAIN으로 갔고, 그만큼 총액이 빠졌다는 뜻입니다.
 - AZ SPREAD = `목적지 AZ 수/호출자 AZ 수`, 목적지 AZ가 2개 이상이고 고르게 퍼져 있으면 `even`.
-- L2가 없으면 금액은 `?`, 총액은 `Estimated total: ? (L2 없음 — --prometheus-url)`로 나옵니다([`testdata/golden/l0-only.txt`](testdata/golden/l0-only.txt)). 이 골든에는 EKS Auto Mode ALB(`marketing/site`, ip 타겟 기본), ingress-nginx가 pod IP로 직접 붙는 zone-local 서비스(`admin/console`, `ingress-direct-backend`), topology-mode Auto를 설정했지만 컨트롤러가 힌트를 보류해 kube-proxy가 전체로 분산하는 서비스(`notify/worker`, BILLABLE의 `hints-withheld`), 비사설 IPv4 ALB 타겟(`partners/webhook`, `lb-exemption-unverified`), 판정 보류(`edge/relay`, `unclassified`) 예도 있습니다. kube-proxy add-on이 1.30에 남은 클러스터에서 annotation 없는 `trafficDistribution`(`hints-unverified`)과 보류된 Auto 힌트(`hints-withheld`)는 [`testdata/golden/stale-proxy.json`](testdata/golden/stale-proxy.json)에 있습니다.
+- L2가 없으면 금액은 `?`, 총액은 `Estimated total: ? (no L2 — --prometheus-url)`로 나옵니다([`testdata/golden/l0-only.txt`](testdata/golden/l0-only.txt)). 이 골든에는 EKS Auto Mode ALB(`marketing/site`, ip 타겟 기본), ingress-nginx가 pod IP로 직접 붙는 zone-local 서비스(`admin/console`, `ingress-direct-backend`), topology-mode Auto를 설정했지만 컨트롤러가 힌트를 보류해 kube-proxy가 전체로 분산하는 서비스(`notify/worker`, BILLABLE의 `hints-withheld`), 비사설 IPv4 ALB 타겟(`partners/webhook`, `lb-exemption-unverified`), 판정 보류(`edge/relay`, `unclassified`) 예도 있습니다. kube-proxy add-on이 1.30에 남은 클러스터에서 annotation 없는 `trafficDistribution`(`hints-unverified`)과 보류된 Auto 힌트(`hints-withheld`)는 [`testdata/golden/stale-proxy.json`](testdata/golden/stale-proxy.json)에 있습니다.
 
 판정 근거는 `explain`으로 봅니다. 수집·분석 경고는 `crossaz: warning:`으로 stderr에 먼저 나옵니다(설명은 stdout).
 
 ```
 $ crossaz explain cache/redis --fixture testdata/fixtures/prod-a.json
-crossaz: warning: 추정 총액에 볼륨을 측정하지 못한 과금 경로 2개가 빠져 있음
+crossaz: warning: the estimated total leaves out 2 billable path(s) whose volume could not be measured
 cache/redis  (service)
   route:       clusterip  (evidence: k8s)
   callers:     cluster/*  ap-northeast-2a=8 ap-northeast-2b=8 ap-northeast-2c=8
   destination: ap-northeast-2a=3
   facts:       az_spread=multi zone_coverage=partial kube_proxy_hints=true topology_hints=false hints_configured=false zone_local=false direct_ingress_backend=false same_vpc=true private_ip=true traffic=client
   rule:        clusterip-cross-az-partial  (billable: true, rule confidence: high)
-  reason:      엔드포인트가 없는 AZ의 호출자는 항상 다른 AZ로 넘어감 (trafficDistribution으로도 해결 안 됨)
+  reason:      Callers in an AZ without an endpoint always cross to another AZ (trafficDistribution cannot fix this)
   source:      https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html  (verified 2026-09-14)
   estimate:    recv 2.1 TB/mo × cross-AZ 0.667 × $0.02/GB = ~$28
   confidence:  medium
-  fix:         topologySpread — 모든 AZ에 엔드포인트가 생기도록 topologySpreadConstraints(topology.kubernetes.io/zone) 추가 후 trafficDistribution 설정
+  fix:         topologySpread — Add topologySpreadConstraints (topology.kubernetes.io/zone) so every AZ gets an endpoint, then set trafficDistribution
 ```
 
 단일 AZ이고 과금 경로가 없으면 두 줄로 끝납니다.
 
 ```
-Cluster: dev-b   AZs: 1   Nodes: 3
-Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습니다.
+Cluster: dev   AZs: 1   Nodes: 3
+Exposure: NONE — all nodes are in a single AZ and there is no billable path.
 ```
 
 `bill`은 노드 인스턴스를 소유한 계정(L1, `ec2:DescribeInstances`의 OwnerId)과 리전으로 좁힌 일별 Cost Explorer 청구를 family·방향별로 보여줍니다([`testdata/golden/bill.txt`](testdata/golden/bill.txt)).
 
 ```
 $ crossaz bill
-Region: us-east-1   Accounts: 111122223333   Window: 2026-08-31..2026-09-13 (UTC, 14일)   Metric: UnblendedCost
+Region: us-east-1   Accounts: 111122223333   Window: 2026-08-31..2026-09-13 (UTC, 14 days)   Metric: UnblendedCost
 
 WATERFALL
 FAMILY      SIDE   USD      GB        $/GB
@@ -249,13 +253,13 @@ publicip    Out    $7.00    700.00    0.0100
 other       ?      $0.25    25.00     0.0100
 TOTAL              $35.25   3525.00   0.0100
 xaz-free    In     $0.00    420.00    0.0000
-xaz-free는 $0(PrivateLink/TGW/Client VPN)이라 TOTAL에서 제외
-미확정(Estimated) 날: 2026-09-13 — 금액이 바뀔 수 있음(TOTAL 포함)
+xaz-free is $0 (PrivateLink/TGW/Client VPN) and left out of TOTAL
+Not final (Estimated) days: 2026-09-13; amounts may still change (included in TOTAL)
 ```
 
 - 범위: usage type이 `DataTransfer-Regional-Bytes`로 끝나는 라인(operation으로 `interzone`·`publicip`·`lb-publicip`, 모르는 operation은 `other` + 경고), `VpcPeering-In/Out-Bytes`(`vpcpeering`), `$0`인 `DataTransfer-xAZ-In/Out-Bytes`(`xaz-free`, TOTAL 제외).
 - Cost Explorer는 GroupBy를 2개까지만 받으므로(USAGE_TYPE, OPERATION) 계정별로 나누지 않습니다. 라인의 `account`는 계정이 하나일 때만 채웁니다.
-- L1이 없으면 REGION만으로 조회하고 경고합니다. 단, L1이 노드 VPC를 하나도 찾지 못하면(다른 계정/리전 자격증명) 조회하지 않고 종료 코드 1입니다. `AccessDenied`, `DataUnavailable`, 빈 결과는 `$0`이 아니라 "청구: 모름"으로 나옵니다.
+- L1이 없으면 REGION만으로 조회하고 경고합니다. 단, L1이 노드 VPC를 하나도 찾지 못하면(다른 계정/리전 자격증명) 조회하지 않고 종료 코드 1입니다. `AccessDenied`, `DataUnavailable`, 빈 결과는 `$0`이 아니라 "Bill: unknown"으로 나옵니다.
 
 ---
 
@@ -289,8 +293,8 @@ xaz-free는 $0(PrivateLink/TGW/Client VPN)이라 TOTAL에서 제외
   - `LIKELY`: BILLABLE 경로가 있음(숨김 포함), 또는 규칙은 확실한데 추정 단계에서 UNCERTAIN으로 내려간 서비스 과금 경로가 있음(메트릭 없음·AZ 모름·Local Zone)
   - `NONE`: 노드 AZ가 1개 이하이고 UNCERTAIN에도 과금 또는 billable unknown 경로가 없음(EKS 컨트롤 플레인 ENI처럼 다른 AZ의 목적지가 있을 수 있음)
   - `UNLIKELY`: 그 외
-- **Estimated total**: L2가 있을 때 BILLABLE 경로(숨김 포함)의 알려진 금액 합. 위처럼 내려간 서비스 과금 경로 중 볼륨을 못 잰 것이 있으면 `WARNINGS`에 "추정 총액에 볼륨을 측정하지 못한 과금 경로 N개가 빠져 있음"
-- **미확정**: `billable: unknown` 경로는 $0(비과금)으로도, 총액으로도 세지 않고 `Estimated total` 아래 `미확정: $0–$X/mo` 줄로 따로 냅니다. X는 과금이라면 낼 금액의 상한(수신량 전부 × 경로 요율)이고, 볼륨을 못 잰 경로가 하나라도 있으면 `?`. JSON은 `unconfirmedMaxUsd`
+- **Estimated total**: L2가 있을 때 BILLABLE 경로(숨김 포함)의 알려진 금액 합. 위처럼 내려간 서비스 과금 경로 중 볼륨을 못 잰 것이 있으면 `WARNINGS`에 "the estimated total leaves out N billable path(s) whose volume could not be measured"
+- **미확정**: `billable: unknown` 경로는 $0(비과금)으로도, 총액으로도 세지 않고 `Estimated total` 아래 `Unconfirmed: $0–$X/mo` 줄로 따로 냅니다. X는 과금이라면 낼 금액의 상한(수신량 전부 × 경로 요율)이고, 볼륨을 못 잰 경로가 하나라도 있으면 `?`. JSON은 `unconfirmedMaxUsd`
 
 ---
 
@@ -401,7 +405,7 @@ sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) (
 - 서비스당 경로는 1개입니다. ALB Ingress가 가리키는 서비스는 `alb`, type=LoadBalancer 서비스는 NLB/CLB 경로로만 판정하며, 같은 서비스로 들어오는 클러스터 내부 ClusterIP 트래픽은 분리하지 않습니다(수신량에는 포함).
 - ALB Ingress 백엔드는 일반 서비스 백엔드와 `use-annotation` 액션(`alb.ingress.kubernetes.io/actions.<name>`의 `forwardConfig.targetGroups[].serviceName`, 레거시 `serviceName`)을 인식합니다. 가중치 forward·blue/green·Argo Rollouts canary가 여기에 해당합니다. 액션 JSON이 깨졌거나 타겟그룹 ARN만 있으면 서비스를 연결하지 못합니다.
 - 노드가 한 AZ에만 있고 ALB/CLB/cross-zone off NLB가 여러 AZ에 걸쳐 있어도 `same-az`로 봅니다. ALB/CLB → 노드는 무료이고 zonal NLB는 타겟 없는 AZ를 DNS에서 빼기 때문입니다. cross-zone이 켜졌거나 모르는 NLB만 L1에서 확인한 LB AZ를 호출자에 합칩니다(L1이 없으면 LB AZ를 모르므로 노드 AZ 기준).
-- `--verify`의 Actual은 **계정·리전 전체**의 `DataTransfer-Regional-Bytes` 중 operation `InterZone-In/Out` 라인입니다(PublicIP·LB-PublicIP·VPC peering·$0 xAZ는 빼고, `Estimated` 날도 합해 30일로 환산하고 그 날 수를 `미확정 N일 포함(잠정)`으로 표시 — Cost Explorer는 달이 닫히기 전 모든 날을 Estimated로 둠). 다른 클러스터·EC2·ELB의 AZ 간 전송이 모두 포함된 상한이므로 Ratio가 1보다 작게 나오는 것이 자연스럽습니다. L1이 없으면(자격증명 없음, 노드를 찾지 못한 다른 계정 자격증명 등) 다른 계정의 비율을 보여주지 않도록 L3를 건너뜁니다.
+- `--verify`의 Actual은 **계정·리전 전체**의 `DataTransfer-Regional-Bytes` 중 operation `InterZone-In/Out` 라인입니다(PublicIP·LB-PublicIP·VPC peering·$0 xAZ는 빼고, `Estimated` 날도 합해 30일로 환산하고 그 날 수를 `N days provisional (Estimated)`로 표시 — Cost Explorer는 달이 닫히기 전 모든 날을 Estimated로 둠). 다른 클러스터·EC2·ELB의 AZ 간 전송이 모두 포함된 상한이므로 Ratio가 1보다 작게 나오는 것이 자연스럽습니다. L1이 없으면(자격증명 없음, 노드를 찾지 못한 다른 계정 자격증명 등) 다른 계정의 비율을 보여주지 않도록 L3를 건너뜁니다.
 - `--prom-selector`가 없으면 Prometheus 쿼리에 cluster 라벨 범위가 없습니다. 여러 클러스터를 담은 Prometheus(Thanos, AMP 등)면 같은 `namespace/pod` 이름이 다른 클러스터 값과 섞일 수 있습니다. 이 클러스터 pod가 결과에 **하나도** 없을 때만 경고하고 L2를 버리므로, 일부만 겹치는 혼입은 잡지 못합니다. `--prom-selector 'cluster="…"'`로 이 클러스터를 지정하세요.
 - 응답 바이트는 호출자 서비스의 수신으로 귀속됩니다.
 - VPC CNI prefix delegation 환경에서 zone 없는 엔드포인트 IP는 ENI 조회로 AZ를 못 찾을 수 있음 (pod IP가 ENI의 개별 IP가 아니라 위임된 prefix 안에 있어 `addresses.private-ip-address` 필터에 걸리지 않음). EndpointSlice에 zone이 있는 엔드포인트(대부분)는 영향이 없습니다. ENI 조회는 클러스터 VPC 안으로 한정하고, ENI들이 서로 다른 AZ를 보고하는 IP는 AZ 모름으로 둡니다.
