@@ -52,7 +52,7 @@
       },
       "billable": "true",
       "ruleId": "clusterip-cross-az",
-      "reason": "kube-proxy가 AZ와 무관하게 엔드포인트를 고름. 다른 AZ pod로 가는 몫이 양쪽 $0.01/GB씩 과금",
+      "reason": "kube-proxy picks endpoints regardless of AZ. The share sent to pods in other AZs is billed $0.01/GB on each side",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
       "rateGb": 0.02,
       "ruleConfidence": "high",
@@ -62,7 +62,7 @@
       "confidence": "medium",
       "fix": {
         "kind": "PreferClose",
-        "description": "Service에 trafficDistribution 설정 (k8s 1.31-1.33: PreferClose, 1.34+: PreferSameZone — 같은 의미)",
+        "description": "Set trafficDistribution on the Service (k8s 1.31-1.33: PreferClose, 1.34+: PreferSameZone, same meaning)",
         "command": "kubectl patch svc -n payments api --type=merge \\\n  -p '{\"spec\":{\"trafficDistribution\":\"PreferClose\"}}'"
       }
     },
@@ -103,7 +103,7 @@
       },
       "billable": "true",
       "ruleId": "headless-cross-az",
-      "reason": "headless는 DNS로 pod IP에 직접 연결(kube-proxy 없음, trafficDistribution 무효). StatefulSet 복제가 AZ를 넘으면 과금",
+      "reason": "Headless services connect to pod IPs through DNS (no kube-proxy, trafficDistribution has no effect). StatefulSet replication across AZs is billed",
       "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
       "rateGb": 0.02,
       "ruleConfidence": "high",
@@ -113,7 +113,7 @@
       "confidence": "medium",
       "fix": {
         "kind": "relocate",
-        "description": "복제 경로는 HA와 맞바꿈. Kafka는 broker.rack/client.rack(follower fetching), Elasticsearch는 shard allocation awareness로 읽기만 zone-local로"
+        "description": "Replication traffic is the price of HA. Make only reads zone-local: Kafka with broker.rack/client.rack (follower fetching), Elasticsearch with shard allocation awareness"
       }
     },
     {
@@ -151,7 +151,7 @@
       },
       "billable": "true",
       "ruleId": "clusterip-cross-az-partial",
-      "reason": "엔드포인트가 없는 AZ의 호출자는 항상 다른 AZ로 넘어감 (trafficDistribution으로도 해결 안 됨)",
+      "reason": "Callers in an AZ without an endpoint always cross to another AZ (trafficDistribution cannot fix this)",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
       "rateGb": 0.02,
       "ruleConfidence": "high",
@@ -161,7 +161,7 @@
       "confidence": "medium",
       "fix": {
         "kind": "topologySpread",
-        "description": "모든 AZ에 엔드포인트가 생기도록 topologySpreadConstraints(topology.kubernetes.io/zone) 추가 후 trafficDistribution 설정"
+        "description": "Add topologySpreadConstraints (topology.kubernetes.io/zone) so every AZ gets an endpoint, then set trafficDistribution"
       }
     },
     {
@@ -201,7 +201,7 @@
       },
       "billable": "true",
       "ruleId": "clusterip-cross-az",
-      "reason": "kube-proxy가 AZ와 무관하게 엔드포인트를 고름. 다른 AZ pod로 가는 몫이 양쪽 $0.01/GB씩 과금",
+      "reason": "kube-proxy picks endpoints regardless of AZ. The share sent to pods in other AZs is billed $0.01/GB on each side",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
       "rateGb": 0.02,
       "ruleConfidence": "high",
@@ -212,7 +212,7 @@
       "confidenceNote": "3/4 pods measured",
       "fix": {
         "kind": "PreferClose",
-        "description": "Service에 trafficDistribution 설정 (k8s 1.31-1.33: PreferClose, 1.34+: PreferSameZone — 같은 의미)",
+        "description": "Set trafficDistribution on the Service (k8s 1.31-1.33: PreferClose, 1.34+: PreferSameZone, same meaning)",
         "command": "kubectl patch svc -n search indexer --type=merge \\\n  -p '{\"spec\":{\"trafficDistribution\":\"PreferClose\"}}'"
       }
     },
@@ -257,7 +257,7 @@
       },
       "billable": "true",
       "ruleId": "nodeport-hop-cross-az",
-      "reason": "instance 타겟: LB→노드는 무료지만 kube-proxy가 다른 AZ 노드의 pod로 한 번 더 보내면 그 홉은 일반 inter-AZ 과금",
+      "reason": "Instance targets: LB to node is free, but when kube-proxy forwards once more to a pod on a node in another AZ, that hop is billed as ordinary inter-AZ traffic",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
       "rateGb": 0.02,
       "ruleConfidence": "medium",
@@ -267,7 +267,7 @@
       "confidence": "medium",
       "fix": {
         "kind": "PreferClose",
-        "description": "trafficDistribution은 externalTrafficPolicy: Cluster인 외부 트래픽에도 적용됨. 근본 해결은 IP 타겟 모드(ALB: alb.ingress.kubernetes.io/target-type=ip, NLB: service.beta.kubernetes.io/aws-load-balancer-nlb-target-type=ip)",
+        "description": "trafficDistribution also applies to external traffic with externalTrafficPolicy: Cluster. The root fix is IP target mode (ALB: alb.ingress.kubernetes.io/target-type=ip, NLB: service.beta.kubernetes.io/aws-load-balancer-nlb-target-type=ip)",
         "command": "kubectl patch svc -n shop storefront --type=merge \\\n  -p '{\"spec\":{\"trafficDistribution\":\"PreferClose\"}}'"
       }
     },
@@ -312,7 +312,7 @@
       },
       "billable": "true",
       "ruleId": "nlb-cross-zone",
-      "reason": "NLB cross-zone이 켜진 타겟그룹은 LB 노드와 다른 AZ 타겟 사이 전송이 양쪽 끝에서 과금 (instance 모드면 kube-proxy 홉 추가)",
+      "reason": "With cross-zone on for the target group, traffic between an NLB node and a target in another AZ is billed on both ends (instance mode adds a kube-proxy hop)",
       "sourceUrl": "https://aws.amazon.com/elasticloadbalancing/faqs/",
       "rateGb": 0.02,
       "ruleConfidence": "high",
@@ -322,7 +322,7 @@
       "confidence": "medium",
       "fix": {
         "kind": "disable-nlb-xz",
-        "description": "AZ마다 타겟이 충분하면 타겟그룹 cross-zone을 끈다. 타겟그룹 값이 LB 값보다 우선하므로 TG 속성으로 설정. annotation에 다른 속성이 이미 있으면 --overwrite가 덮어쓰니 값을 합칠 것. annotation을 지우는 것만으로는 꺼지지 않음",
+        "description": "If every AZ has enough targets, turn cross-zone off on the target group. The target group value takes precedence over the LB value, so set it as a TG attribute. If the annotation already holds other attributes, --overwrite replaces them, so merge the values. Removing the annotation alone does not turn it off",
         "command": "kubectl annotate svc -n edge gateway --overwrite \\\n  service.beta.kubernetes.io/aws-load-balancer-target-group-attributes=load_balancing.cross_zone.enabled=false"
       }
     }
@@ -369,7 +369,7 @@
       },
       "billable": "false",
       "ruleId": "alb-private-same-vpc",
-      "reason": "EC2↔ALB 사설 IP·동일 VPC 전송은 AZ와 무관하게 무료 (cross-zone 설정과 무관)",
+      "reason": "EC2 to/from ALB over private IPs in the same VPC is free regardless of AZ (and of the cross-zone setting)",
       "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
       "rateGb": 0,
       "ruleConfidence": "high",
@@ -419,7 +419,7 @@
       },
       "billable": "false",
       "ruleId": "nlb-zonal-internet",
-      "reason": "cross-zone off: LB 노드는 같은 AZ 타겟에만 전달. 인터넷→NLB 유입은 AZ 간 전송이 아님 (VPC 내부에서 공인 IP로 호출하면 별도 공인 IP 요금)",
+      "reason": "Cross-zone off: each LB node forwards only to targets in its own AZ. Internet-to-NLB ingress is not inter-AZ transfer (calling the public IP from inside the VPC incurs a separate public-IP charge)",
       "sourceUrl": "https://aws.amazon.com/blogs/networking-and-content-delivery/exploring-data-transfer-costs-for-aws-network-load-balancers/",
       "rateGb": 0,
       "ruleConfidence": "medium",
@@ -469,7 +469,7 @@
       },
       "billable": "false",
       "ruleId": "alb-ip-target-mode",
-      "reason": "ALB→pod IP 직접 전송. EKS Best Practices는 IP 모드에 전송료 없음으로 설명하나, EC2 요금 문구는 'EC2 인스턴스'만 명시 → --verify로 대조 권장",
+      "reason": "ALB sends directly to pod IPs. The EKS Best Practices guide says IP mode has no transfer charge, but the EC2 pricing wording names only 'EC2 instances'; cross-check with --verify",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
       "rateGb": 0,
       "ruleConfidence": "medium",
@@ -519,7 +519,7 @@
       },
       "billable": "false",
       "ruleId": "clb-private-same-vpc",
-      "reason": "EC2↔Classic LB 사설 IP·동일 VPC 전송은 무료",
+      "reason": "EC2 to/from a Classic LB over private IPs in the same VPC is free",
       "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
       "rateGb": 0,
       "ruleConfidence": "high",
@@ -565,7 +565,7 @@
       },
       "billable": "false",
       "ruleId": "msk-inter-broker",
-      "reason": "MSK 브로커 간 복제는 요금에 포함",
+      "reason": "Replication between MSK brokers is included in the price",
       "sourceUrl": "https://aws.amazon.com/msk/pricing/",
       "rateGb": 0,
       "ruleConfidence": "high",
@@ -622,7 +622,7 @@
       },
       "billable": "false",
       "ruleId": "topology-aware-routing",
-      "reason": "kube-proxy가 같은 AZ 엔드포인트만 사용 (EndpointSlice 힌트가 모든 호출자 AZ를 덮음, 또는 internalTrafficPolicy: Local). 힌트가 제거되면 클러스터 전체로 폴백",
+      "reason": "kube-proxy uses only same-AZ endpoints (EndpointSlice hints cover every caller AZ, or internalTrafficPolicy: Local). If the hints are removed it falls back to the whole cluster",
       "sourceUrl": "https://kubernetes.io/docs/concepts/services-networking/topology-aware-routing/",
       "rateGb": 0,
       "ruleConfidence": "medium",
@@ -666,7 +666,7 @@
       },
       "billable": "false",
       "ruleId": "rds-multiaz-replication",
-      "reason": "Multi-AZ 프라이머리↔스탠바이, 같은 리전 read replica, Aurora 클러스터 복제는 무료",
+      "reason": "Multi-AZ primary-standby, same-region read replicas and Aurora cluster replication are free",
       "sourceUrl": "https://aws.amazon.com/rds/pricing/",
       "rateGb": 0,
       "ruleConfidence": "high",
@@ -710,7 +710,7 @@
       },
       "billable": "false",
       "ruleId": "rds-multiaz-replication",
-      "reason": "Multi-AZ 프라이머리↔스탠바이, 같은 리전 read replica, Aurora 클러스터 복제는 무료",
+      "reason": "Multi-AZ primary-standby, same-region read replicas and Aurora cluster replication are free",
       "sourceUrl": "https://aws.amazon.com/rds/pricing/",
       "rateGb": 0,
       "ruleConfidence": "high",
@@ -757,7 +757,7 @@
       },
       "billable": "true",
       "ruleId": "clusterip-cross-az-partial",
-      "reason": "엔드포인트가 없는 AZ의 호출자는 항상 다른 AZ로 넘어감 (trafficDistribution으로도 해결 안 됨)",
+      "reason": "Callers in an AZ without an endpoint always cross to another AZ (trafficDistribution cannot fix this)",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
       "rateGb": 0.02,
       "ruleConfidence": "high",
@@ -765,10 +765,10 @@
       "crossAzFraction": 0.6666666666666667,
       "costPerMo": null,
       "confidence": "low",
-      "confidenceNote": "엔드포인트 pod 메트릭 없음",
+      "confidenceNote": "no metrics for the endpoint pods",
       "fix": {
         "kind": "topologySpread",
-        "description": "모든 AZ에 엔드포인트가 생기도록 topologySpreadConstraints(topology.kubernetes.io/zone) 추가 후 trafficDistribution 설정"
+        "description": "Add topologySpreadConstraints (topology.kubernetes.io/zone) so every AZ gets an endpoint, then set trafficDistribution"
       }
     },
     {
@@ -807,7 +807,7 @@
       },
       "billable": "true",
       "ruleId": "elasticache-cross-az",
-      "reason": "pod↔다른 AZ의 ElastiCache 노드. EC2 쪽만 $0.01/GB씩 과금",
+      "reason": "Pod to/from an ElastiCache node in another AZ. Billed $0.01/GB on the EC2 side only",
       "sourceUrl": "https://aws.amazon.com/elasticache/pricing/",
       "rateGb": 0.01,
       "ruleConfidence": "high",
@@ -815,10 +815,10 @@
       "crossAzFraction": 0.6666666666666667,
       "costPerMo": null,
       "confidence": "low",
-      "confidenceNote": "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음",
+      "confidenceNote": "target outside the cluster: traffic and volume unknown",
       "fix": {
         "kind": "relocate",
-        "description": "읽기는 같은 AZ 리플리카로(클라이언트 AZ affinity), 노드를 호출자 AZ에 맞춰 배치"
+        "description": "Read from a replica in the same AZ (client AZ affinity) and place nodes in the callers' AZs"
       }
     },
     {
@@ -862,7 +862,7 @@
       },
       "billable": "true",
       "ruleId": "nlb-client-cross-az",
-      "reason": "cross-zone을 꺼도 VPC 내부 클라이언트가 DNS로 다른 AZ의 NLB 노드 IP를 받으면 과금. 클라이언트 위치·DNS 라우팅 정책에 좌우됨",
+      "reason": "Even with cross-zone off, a client inside the VPC that gets the IP of an NLB node in another AZ from DNS is billed. Depends on client placement and the DNS routing policy",
       "sourceUrl": "https://aws.amazon.com/blogs/networking-and-content-delivery/exploring-data-transfer-costs-for-aws-network-load-balancers/",
       "rateGb": 0.02,
       "ruleConfidence": "low",
@@ -870,10 +870,10 @@
       "crossAzFraction": 0.6666666666666667,
       "costPerMo": null,
       "confidence": "low",
-      "confidenceNote": "판정 신뢰도 low: 금액 생략",
+      "confidenceNote": "low verdict confidence: amount omitted",
       "fix": {
         "kind": "zonal-dns",
-        "description": "클러스터 내부 호출이면 NLB 대신 ClusterIP + trafficDistribution 사용, 또는 NLB dns_record.client_routing_policy=availability_zone_affinity"
+        "description": "For in-cluster callers use ClusterIP + trafficDistribution instead of the NLB, or set the NLB attribute dns_record.client_routing_policy=availability_zone_affinity"
       }
     },
     {
@@ -913,7 +913,7 @@
       },
       "billable": "true",
       "ruleId": "clusterip-cross-az",
-      "reason": "kube-proxy가 AZ와 무관하게 엔드포인트를 고름. 다른 AZ pod로 가는 몫이 양쪽 $0.01/GB씩 과금",
+      "reason": "kube-proxy picks endpoints regardless of AZ. The share sent to pods in other AZs is billed $0.01/GB on each side",
       "sourceUrl": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html",
       "rateGb": 0.02,
       "ruleConfidence": "high",
@@ -921,10 +921,10 @@
       "crossAzFraction": 0.6666666666666667,
       "costPerMo": null,
       "confidence": "low",
-      "confidenceNote": "엔드포인트 pod 메트릭 없음",
+      "confidenceNote": "no metrics for the endpoint pods",
       "fix": {
         "kind": "PreferClose",
-        "description": "Service에 trafficDistribution 설정 (k8s 1.31-1.33: PreferClose, 1.34+: PreferSameZone — 같은 의미)",
+        "description": "Set trafficDistribution on the Service (k8s 1.31-1.33: PreferClose, 1.34+: PreferSameZone, same meaning)",
         "command": "kubectl patch svc -n monitoring node-exporter --type=merge \\\n  -p '{\"spec\":{\"trafficDistribution\":\"PreferClose\"}}'"
       }
     },
@@ -965,7 +965,7 @@
       },
       "billable": "true",
       "ruleId": "msk-client-cross-az",
-      "reason": "클라이언트↔다른 AZ 브로커 전송은 표준 요금. 공식 확인된 것은 클라이언트(EC2) 쪽 — 하한으로 계산",
+      "reason": "Client to/from a broker in another AZ is charged at the standard rate. Only the client (EC2) side is officially confirmed, so this is a lower bound",
       "sourceUrl": "https://aws.amazon.com/msk/pricing/",
       "rateGb": 0.01,
       "ruleConfidence": "medium",
@@ -973,10 +973,10 @@
       "crossAzFraction": 0.6666666666666667,
       "costPerMo": null,
       "confidence": "low",
-      "confidenceNote": "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음",
+      "confidenceNote": "target outside the cluster: traffic and volume unknown",
       "fix": {
         "kind": "relocate",
-        "description": "컨슈머에 client.rack=<AZ ID> 설정(follower fetching, replica.selector.class=RackAwareReplicaSelector)"
+        "description": "Set client.rack=<AZ ID> on consumers (follower fetching, replica.selector.class=RackAwareReplicaSelector)"
       }
     },
     {
@@ -1015,7 +1015,7 @@
       },
       "billable": "true",
       "ruleId": "rds-cross-az",
-      "reason": "pod↔다른 AZ의 RDS/Aurora 인스턴스(프라이머리·리플리카 모두). EC2 쪽만 $0.01/GB씩 과금",
+      "reason": "Pod to/from an RDS/Aurora instance in another AZ (primary or replica). Billed $0.01/GB on the EC2 side only",
       "sourceUrl": "https://aws.amazon.com/rds/pricing/",
       "rateGb": 0.01,
       "ruleConfidence": "high",
@@ -1023,10 +1023,10 @@
       "crossAzFraction": 0.6666666666666667,
       "costPerMo": null,
       "confidence": "low",
-      "confidenceNote": "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음",
+      "confidenceNote": "target outside the cluster: traffic and volume unknown",
       "fix": {
         "kind": "relocate",
-        "description": "읽기 트래픽은 같은 AZ 리플리카로 보내고, 쓰기 경로가 큰 워크로드는 프라이머리 AZ에 배치 검토"
+        "description": "Send reads to a replica in the same AZ, and consider placing write-heavy workloads in the primary's AZ"
       }
     },
     {
@@ -1064,7 +1064,7 @@
       },
       "billable": "true",
       "ruleId": "rds-cross-az",
-      "reason": "pod↔다른 AZ의 RDS/Aurora 인스턴스(프라이머리·리플리카 모두). EC2 쪽만 $0.01/GB씩 과금",
+      "reason": "Pod to/from an RDS/Aurora instance in another AZ (primary or replica). Billed $0.01/GB on the EC2 side only",
       "sourceUrl": "https://aws.amazon.com/rds/pricing/",
       "rateGb": 0.01,
       "ruleConfidence": "high",
@@ -1072,10 +1072,10 @@
       "crossAzFraction": 0.6666666666666667,
       "costPerMo": null,
       "confidence": "low",
-      "confidenceNote": "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음",
+      "confidenceNote": "target outside the cluster: traffic and volume unknown",
       "fix": {
         "kind": "relocate",
-        "description": "읽기 트래픽은 같은 AZ 리플리카로 보내고, 쓰기 경로가 큰 워크로드는 프라이머리 AZ에 배치 검토"
+        "description": "Send reads to a replica in the same AZ, and consider placing write-heavy workloads in the primary's AZ"
       }
     }
   ],
@@ -1083,7 +1083,7 @@
   "thresholdUsd": 1,
   "estimatedTotalUsd": 182.86666666666667,
   "warnings": [
-    "추정 총액에 볼륨을 측정하지 못한 과금 경로 2개가 빠져 있음"
+    "the estimated total leaves out 2 billable path(s) whose volume could not be measured"
   ],
   "verify": {
     "window": "2026-08-18..2026-08-31",
@@ -1093,6 +1093,6 @@
     "estimatedUsd": 182.86666666666667,
     "actualUsd": 165.0857142857143,
     "ratio": 1.1077073958693897,
-    "note": "제외 규칙이 대체로 맞음"
+    "note": "exclusion rules look broadly right"
   }
 }

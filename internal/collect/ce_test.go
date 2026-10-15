@@ -200,7 +200,7 @@ func TestDailyBillClassifiesLines(t *testing.T) {
 		line("Mystery", model.FamilyOther, regional, 0.4, 40),
 		line("VPCPeering", model.FamilyVPCPeering, "APN2-VpcPeering-Out-Bytes", 0.5, 50),
 		line("Unknown", model.FamilyXAZFree, "APN2-DataTransfer-xAZ-In-Bytes", 0, 60),
-	}, Warnings: []string{`모르는 operation "Mystery": family other로 분류(총액 포함)`}}
+	}, Warnings: []string{`unknown operation "Mystery": classified as family other (included in the total)`}}
 
 	// Act
 	got, err := NewCostExplorer(stub).DailyBill(t.Context(), "ap-northeast-2", []string{"111122223333"}, ceTestFrom, ceTestTo)
@@ -277,8 +277,8 @@ func TestDailyBillUnknownIsNotZero(t *testing.T) {
 		err         error
 		wantWarning string
 	}{
-		{"SDK DataUnavailableException", &cetypes.DataUnavailableException{Message: aws.String("not yet")}, "Cost Explorer 청구 모름(DataUnavailableException)"},
-		{"wrapped AccessDenied", fmt.Errorf("operation error: %w", ceTestAPIError{code: "AccessDenied", message: "no"}), "Cost Explorer 청구 모름(AccessDenied)"},
+		{"SDK DataUnavailableException", &cetypes.DataUnavailableException{Message: aws.String("not yet")}, "Cost Explorer bill unknown (DataUnavailableException)"},
+		{"wrapped AccessDenied", fmt.Errorf("operation error: %w", ceTestAPIError{code: "AccessDenied", message: "no"}), "Cost Explorer bill unknown (AccessDenied)"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

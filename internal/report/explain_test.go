@@ -68,7 +68,7 @@ func TestExplainUnknownCostAndRuleFallbacks(t *testing.T) {
 	// Arrange
 	client := uncertainPath()
 	client.Facts = model.Facts{Traffic: "client", Scheme: "internal", Evidence: model.EvidenceAWS}
-	client.ConfidenceNote = "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음"
+	client.ConfidenceNote = "target outside the cluster: traffic and volume unknown"
 	replication := uncertainPath()
 	replication.RuleID = "rds-multiaz-replication"
 	replication.Billable = model.TriFalse
@@ -83,7 +83,7 @@ func TestExplainUnknownCostAndRuleFallbacks(t *testing.T) {
 	want := []string{
 		"  facts:       kube_proxy_hints=false topology_hints=false hints_configured=false zone_local=false direct_ingress_backend=false scheme=internal same_vpc=false private_ip=false traffic=client\n",
 		"  source:      https://rule.example/rds  (unverified)\n",
-		"  estimate:    클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음\n",
+		"  estimate:    target outside the cluster: traffic and volume unknown\n",
 		"  confidence:  low\n",
 		"\nrds/orders-db  (rds)\n",
 		"  source:      —  (verified 2026-09-01)\n",

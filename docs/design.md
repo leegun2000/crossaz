@@ -136,7 +136,7 @@ func Verify(estimatedUSD *float64, bill model.Bill) model.VerifyResult
 - 비과금 → 금액 nil, confidence 그대로. 단 L2가 있고 서비스 경로면 `BytesPerMo`는 채운다("ALB로 6TB가 지나가지만 무료"를 보여주기 위해)
 - 과금 + `Dest.Kind != service` → confidence **low**, note "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음"
 - 과금 + `Dest.AZDist.Total() == 0` → 금액 nil, confidence **low**, note "엔드포인트 AZ를 알 수 없어 cross-AZ 비율 계산 불가". L2 유무와 무관(L0에서도 같은 결과)
-- 과금 + `s.Volume == nil` → 금액 nil, confidence 그대로, note "L2 없음: --prometheus-url로 볼륨 추정"
+- 과금 + `s.Volume == nil` → 금액 nil, confidence 그대로, note "no L2: estimate volume with --prometheus-url"
 - 과금 + L2:
   - 서비스(`Dest.Ref` = ns/name)의 ready 엔드포인트 중 PodName 있는 것 → key `ns/PodName`
   - pod 볼륨 ÷ (그 pod를 ready 엔드포인트로 가진 서비스 수)
@@ -155,10 +155,10 @@ func Verify(estimatedUSD *float64, bill model.Bill) model.VerifyResult
 - `TotalUSD`: Volume≠nil이면 billable·non-low 경로의 알려진 금액 합(숨김 포함). 아니면 nil
 - "추정 강등 과금 경로" = Uncertain 중 billable true && `RuleConfidence != low` && `Dest.Kind == service` (규칙은 확실한데 추정 단계에서 low가 됨: 메트릭 없음, 목적지 AZ 모름, Local Zone)
 - Exposure: Paths나 Hidden이 있거나 추정 강등 과금 경로가 있으면 `likely`; 아니면 Zones ≤1이고 Uncertain 중 billable true 없음(unknown은 세지 않음) → `none`; 그 외 `unlikely`
-- Warnings = s.Warnings 복사. Volume≠nil이고 `BytesPerMo == nil`인 추정 강등 과금 경로가 N>0개면 뒤에 "추정 총액에 볼륨을 측정하지 못한 과금 경로 N개가 빠져 있음"(TotalUSD는 알려진 합 그대로)
+- Warnings = s.Warnings 복사. Volume≠nil이고 `BytesPerMo == nil`인 추정 강등 과금 경로가 N>0개면 뒤에 "the estimated total leaves out N billable path(s) whose volume could not be measured"(TotalUSD는 알려진 합 그대로)
 - Verify = Bill≠nil이면 `Verify(TotalUSD, *s.Bill)`
 
-`Verify`: actual = 창 안 모든 날의 family `interzone` 라인 USD 합 ÷ 날 수(`Days`) × 30(`MonthSeconds`/일). CE는 열린 달의 모든 날을 `Estimated`로 표시하므로 그 날도 합하고, 개수를 `EstimatedDays`에 담아 VERIFY 줄에 `미확정 N일 포함(잠정)`으로 적는다. PublicIP·LB-PublicIP·peering·xAZ·other는 넣지 않는다. ratio = est/actual(둘 다 >0). note 우선순위: Bill.Unknown → "Cost Explorer 청구 모름 — 비교 불가"(ActualUSD nil); est nil → "L2(--prometheus-url) 없이는 비교 불가"; actual==0 → "해당 기간 InterZone 실제 비용 0"; ratio>1.5 → "추정 과대: 제외 규칙 누락 의심"; ratio<0.5 → "클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심"; 그 외 "제외 규칙이 대체로 맞음". Actual은 계정·리전 전체(ELB·공인 IP·다른 서비스 포함) 상한임을 note 뒤에 붙이지 않고 README에 적는다.
+`Verify`: actual = 창 안 모든 날의 family `interzone` 라인 USD 합 ÷ 날 수(`Days`) × 30(`MonthSeconds`/일). CE는 열린 달의 모든 날을 `Estimated`로 표시하므로 그 날도 합하고, 개수를 `EstimatedDays`에 담아 VERIFY 줄에 `N days provisional (Estimated)`로 적는다. PublicIP·LB-PublicIP·peering·xAZ·other는 넣지 않는다. ratio = est/actual(둘 다 >0). note 우선순위: Bill.Unknown → "Cost Explorer bill unknown: cannot compare"(ActualUSD nil); est nil → "cannot compare without L2 (--prometheus-url)"; actual==0 → "actual InterZone cost for the period is 0"; ratio>1.5 → "overestimate: suspect a missing exclusion rule"; ratio<0.5 → "suspect leaks outside the cluster (RDS/MSK/NLB/other workloads)"; 그 외 "exclusion rules look broadly right". Actual은 계정·리전 전체(ELB·공인 IP·다른 서비스 포함) 상한임을 note 뒤에 붙이지 않고 README에 적는다.
 
 ### C4. `internal/collect`
 
@@ -184,7 +184,7 @@ func WithBill(ctx context.Context, s model.Snapshot, c BillCollector, from, to t
   `Ingress.Services` = 규칙·defaultBackend의 서비스 이름. 포트 이름이 `use-annotation`인 백엔드(AWS Load Balancer Controller 액션)는 서비스가 아니라 액션 이름이므로 `alb.ingress.kubernetes.io/actions.<name>` JSON의 `forwardConfig.targetGroups[].serviceName`과 레거시 최상위 `serviceName`(키 대소문자 무시)으로 바꾼다. 액션 이름 자체는 일반 백엔드가 같은 이름을 쓸 때만 남는다. annotation이 없거나 깨졌거나 fixed-response·ARN 전용 forward면 아무것도 추가하지 않는다. 가중치·blue/green·Argo Rollouts canary 구성이 여기에 해당. 정렬·중복 제거.
 - `WithAWS`(새 Snapshot 반환, 원본 불변): 노드 InstanceID → `InstanceVPCs` → `Subnets(vpcs)` → `LoadBalancers(vpcs)`; `RDSInstances`, `ElastiCacheClusters`, `MSKClusters(subnets)` 결과는 `VPCID ∈ vpcs`만 남김. zone 없는 ready 엔드포인트 IP → `IPZones(vpcs, ips)`. 호출별 실패는 `"L1: <what>: <err>"` 경고로 남기고 계속. VPC를 못 구하면 경고 + AWS=nil.
   - `LoadBalancers`는 부분 결과를 돌려준다: 속성·타겟그룹 조회에 실패한 ELBv2 LB는 빼고(그 경로는 annotation 근거로 폴백), v2 목록과 Classic 목록은 서로 독립적으로 실패한다. 실패마다 경고 한 줄 `L1: 로드밸런서: load balancer <name>: <api>: <err>`(errors.Join을 풀어서, 경고에 개행 없음). 전부 실패하면 빈 목록.
-- `WithVolume`: 쿼리 성공 후, PodName이 있는 ready 엔드포인트가 하나 이상인데 결과에 그 `ns/pod` 키가 **하나도** 없으면(빈 결과, 다른 클러스터, cAdvisor 미수집, 수집 10분 미만이라 5분 스텝이 없음) Volume=nil + 경고 `L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터, cAdvisor 메트릭 누락, 또는 수집한 지 10분 미만`. 결과는 L2 없는 출력(Layers에 L2 없음, 총액 `?`)으로 폴백. 일부만 겹치면 L2로 인정. 입력의 이전 Volume은 먼저 지운다.
+- `WithVolume`: 쿼리 성공 후, PodName이 있는 ready 엔드포인트가 하나 이상인데 결과에 그 `ns/pod` 키가 **하나도** 없으면(빈 결과, 다른 클러스터, cAdvisor 미수집, 수집 10분 미만이라 5분 스텝이 없음) Volume=nil + 경고 `L2: the Prometheus result has no endpoint pod of this cluster (another cluster, missing cAdvisor metrics, or scraping for less than 10 minutes)`. 결과는 L2 없는 출력(Layers에 L2 없음, 총액 `?`)으로 폴백. 일부만 겹치면 L2로 인정. 입력의 이전 Volume은 먼저 지운다.
 - read-only 강제: `readonly.go`에 SDK 클라이언트별 인터페이스(메서드는 Describe*/List*/Get*만). `aws.go`·`ce.go`는 이 인터페이스 타입만 참조. `readonly_test.go`가 reflect로 모든 인터페이스 메서드 이름 접두어를 검사하고, 실제 SDK 클라이언트 타입이 인터페이스를 만족하는지 컴파일 타임 단언.
 - API 사용 (IAM과 1:1):
   - `ec2:DescribeInstances`(InstanceIds) → VpcId, Reservation OwnerId(계정)
@@ -195,7 +195,7 @@ func WithBill(ctx context.Context, s model.Snapshot, c BillCollector, from, to t
   - `elasticache:DescribeCacheClusters`(ShowCacheNodeInfo=true, 페이지) → CacheNodes[].CustomerAvailabilityZone, ReplicationGroupId; `elasticache:DescribeCacheSubnetGroups` → VpcId
   - `kafka:ListClustersV2`(ClusterTypeFilter=PROVISIONED) → BrokerNodeGroupInfo.ClientSubnets, NumberOfBrokerNodes → 서브넷 AZ에 균등 분배
 - Prometheus: `GET <base>/api/v1/query?query=` 아래 쿼리, `status != "success"`면 에러, 결과 vector → `"ns/pod"` → float. 기본으로는 cluster 라벨로 범위를 좁히지 않는다. `--prom-selector`(예: `cluster="prod-a",job=~"kubelet|cadvisor"`, 중괄호 있어도 됨)를 주면 그 매처를 **모든 쿼리의 모든 vector selector**에 `pod!=""` 뒤로 덧붙인다(아래 SEL).
-  `--prom-selector`는 플래그 검증 단계에서 stdlib 파서(`collect.ParsePromSelector`)로 엄격히 파싱한다: 라벨 이름 `[a-zA-Z_][a-zA-Z0-9_]*`, 연산자 `=` `!=` `=~` `!~`, 값은 큰따옴표 Go 문자열 리터럴(`strconv.Unquote`), 정규식 값은 Prometheus처럼 `^(?:re)$`로 감싸 RE2로 컴파일돼야 한다. 쉼표 누락, 뒤따르는 문자, 닫히지 않은 문자열·중괄호는 `--prom-selector: offset N: want ..., got "..."`로 거부하고 종료 코드 2(HTTP 요청 없음). 빈 값은 no-op. 쿼리에는 파싱한 매처를 `,name op strconv.Quote(value)`로 다시 렌더링해 넣으므로 입력이 selector 밖으로 나갈 수 없다. selector를 준 채 결과가 엔드포인트 pod와 하나도 안 맞으면 아래 no-match 경고 뒤에 ` (--prom-selector "<입력>" 적용됨)`을 붙인다.
+  `--prom-selector`는 플래그 검증 단계에서 stdlib 파서(`collect.ParsePromSelector`)로 엄격히 파싱한다: 라벨 이름 `[a-zA-Z_][a-zA-Z0-9_]*`, 연산자 `=` `!=` `=~` `!~`, 값은 큰따옴표 Go 문자열 리터럴(`strconv.Unquote`), 정규식 값은 Prometheus처럼 `^(?:re)$`로 감싸 RE2로 컴파일돼야 한다. 쉼표 누락, 뒤따르는 문자, 닫히지 않은 문자열·중괄호는 `--prom-selector: offset N: want ..., got "..."`로 거부하고 종료 코드 2(HTTP 요청 없음). 빈 값은 no-op. 쿼리에는 파싱한 매처를 `,name op strconv.Quote(value)`로 다시 렌더링해 넣으므로 입력이 selector 밖으로 나갈 수 없다. selector를 준 채 결과가 엔드포인트 pod와 하나도 안 맞으면 아래 no-match 경고 뒤에 ` (--prom-selector "<input>" applied)`을 붙인다.
   base URL의 basic-auth 자격증명은 퍼센트 인코딩해야 한다. `url.Parse` 실패는 고정 메시지 `prometheus: base URL is invalid (percent-encode credentials)`, 스킴 오류 메시지와 `http.NewRequest`/`hc.Do`의 `*url.Error`는 userinfo를 지운 URL(파싱 불가면 `<redacted>`)로 다시 만든다(`errors.Is` 체인 유지). 사용자 이름·비밀번호가 경고·`--json`·`--dump-fixture`에 남지 않는다.
   ```promql
   sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) (rate(container_network_receive_bytes_total{pod!=""SEL}[5m]) and container_network_receive_bytes_total{pod!=""SEL} offset 5m))[WINDOW:5m]))
@@ -224,9 +224,9 @@ func USD(v *float64, billable bool) string // "~$56", "~$0.40"(<$10은 소수 �
 - AZ SPREAD = `목적지zone수/호출자zone수` + (목적지 zone ≥2 && IsEven이면 ` even`)
 - BILLABLE의 마지막 열 = Fix.Kind(없으면 `—`), 나머지 섹션 = RuleID
 - Hidden>0이면 BILLABLE 표 아래 `(N paths below $T/mo hidden — use --threshold 0)`
-- `Exposure: NONE`이면 2줄만: `Cluster: X   AZs: 1   Nodes: N` / `Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습니다.`
+- `Exposure: NONE`이면 2줄만: `Cluster: X   AZs: 1   Nodes: N` / `Exposure: NONE — all nodes are in a single AZ and there is no billable path.`
 - 헤더 `Cluster: X   Region: R   AZs: n   Nodes: n   Layers: L0+L1`, `Exposure: LIKELY`
-- 푸터 `Estimated total: ~$133/mo` 또는 `Estimated total: ? (L2 없음 — --prometheus-url)`, billable unknown 경로가 있으면 총액 바로 아래 `미확정: $0–$3.00/mo (billable 미확정 경로 N개, 총액 제외)`(상한을 모르면 `$0–?`), `Run \`crossaz explain <첫 BILLABLE 키>\` for rule details.`(BILLABLE 있을 때), VERIFY 블록(SPEC §9), `WARNINGS` 목록
+- 푸터 `Estimated total: ~$133/mo` 또는 `Estimated total: ? (no L2 — --prometheus-url)`, billable unknown 경로가 있으면 총액 바로 아래 `Unconfirmed: $0–$3.00/mo (N paths with undecided billing, not in the total)`(상한을 모르면 `$0–?`), `Run \`crossaz explain <첫 BILLABLE 키>\` for rule details.`(BILLABLE 있을 때), VERIFY 블록(SPEC §9), `WARNINGS` 목록
 - `Explain` facts 줄: `az_spread zone_coverage kube_proxy_hints topology_hints hints_configured zone_local direct_ingress_backend scheme target_type external_traffic_policy same_vpc private_ip traffic` (빈 문자열 사실은 생략, bool은 항상)
 - 터미널 제어 문자 차단: Table·Explain·Rules는 클러스터·AWS·규칙 파일에서 온 문자열(표 셀, 헤더, 클러스터 이름, 경고, VERIFY 값, explain 값·fix 명령 줄, SOURCES id·URL)의 `unicode.IsControl` 문자(ESC, BEL, CR, LF, TAB, C1 포함)를 `?`로 바꾼다. JSON은 `encoding/json` 이스케이프 그대로
 
@@ -238,7 +238,7 @@ func Analyze(s model.Snapshot, rs model.RuleSet, o Options) (model.ScanResult, [
 func Anonymize(s model.Snapshot) model.Snapshot
 ```
 
-- `Analyze`: BuildPaths → Apply → Estimate → Local Zone 금액 생략 → Summarize. 추가 경고: 리전 요율 미내장(`RateFor` builtin=false && RateGB==0), Local/Wavelength Zone 노드(zone이 `<region><문자>` 형식이 아님) → `Local/Wavelength Zone 노드 발견(<zones>): 요율이 달라 해당 경로 금액 생략`.
+- `Analyze`: BuildPaths → Apply → Estimate → Local Zone 금액 생략 → Summarize. 추가 경고: 리전 요율 미내장(`RateFor` builtin=false && RateGB==0), Local/Wavelength Zone 노드(zone이 `<region><문자>` 형식이 아님) → `Local/Wavelength Zone nodes found (<zones>): their rate differs, so amounts of paths touching them are omitted`.
   - Local Zone 금액 생략: billable 또는 unknown이고 아직 low가 아닌 경로 중 Source 또는 Dest AZDist에 그 zone이 있으면 `CostPerMo=nil`, confidence low, note `Local/Wavelength Zone 포함: 요율이 달라 금액 생략`, `BytesPerMo`는 유지 → UNCERTAIN, 총액 제외. unknown 경로는 이 note 때문에 미확정 상한이 `?`가 된다(부모 리전 요율로 상한을 낮게 잡지 않음). 새 슬라이스를 만든다. 비과금·이미 low인 경로는 그대로.
 - `Anonymize`: sha256 기반 결정적 치환(같은 입력 → 같은 출력, 조인 보존) — IP(사설 IPv4는 `10.x.y.z`, 그 외 IPv4는 198.18.0.0/15, IPv6는 fd00::/8), 노드 이름(EKS 노드 이름에 IP 포함), InstanceID, VPC/서브넷 ID, LB·타겟그룹 이름·DNS·Service/Ingress LBHostnames, IPZones 키.
   - mirror pod(`OwnerKind == Node`, 이름이 `<pod>-<NodeName>`): 이름 끝의 노드 이름과 `OwnerName`을 노드 이름 치환값으로 바꾸고, 같은 이름을 쓰는 엔드포인트 `PodName`·Volume 키(`ns/pod`)도 함께 바꾼다(kubelet이 static pod를 노드 이름으로 명명하므로).
@@ -259,7 +259,7 @@ crossaz version
 플래그: `--kubeconfig`, `--context`, `--cluster`, `--region`, `--rules`, `--rate-gb`, `--prometheus-url`, `--prom-selector`, `--prom-window`(7d), `--no-aws`, `--fixture <file>`, `--timeout`(2m)는 scan·explain 공통. `--threshold`(1), `--json`, `--dump-fixture`, `--verify`는 **scan 전용**(explain에 주면 `flag provided but not defined`, 종료 코드 2). 표준 `flag`만.
 흐름: fixture 있으면 파일 로드(v1 fixture의 `cost` 키는 읽고 버리며 경고 `v1 fixture의 월별 cost는 무시됨 — --verify로 다시 수집`; `--prometheus-url`/`--verify`를 함께 주면 무시하고 경고 `--fixture 사용 중: --prometheus-url/--verify는 무시됨 (fixture에 포함된 레이어만 사용)` — `--dump-fixture`면 이 경고도 덤프에 들어감); 없으면 GatherK8s → (no-aws 아니면) AWS 설정 로드·`Credentials.Retrieve` 성공 시 WithAWS, 실패 시 경고 → prometheus-url 있으면 WithVolume → verify면 WithBill(최근 14개 닫힌 UTC 일). WithBill은 L1이 AWS 인벤토리를 만든 경우(`snapshot.AWS != nil`)에만 부른다. 자격증명 없음, 노드 instance ID 없음, 노드 VPC 조회 실패 또는 0개(예: 다른 계정 자격증명)면 Cost Explorer를 호출하지 않고 경고 `L3: L1(AWS 인벤토리)을 얻지 못해 --verify 건너뜀`. `--dump-fixture`면 Anonymize 후 JSON 출력하고 종료.
 explain: 수집·분석 경고(`ScanResult.Warnings`)를 한 줄씩 `crossaz: warning: <text>`로 stderr에 먼저 쓰고 설명을 stdout에 쓴다. 키가 없어 종료 코드 1(`no path for <key>`)일 때도 경고는 나온다.
-bill: `--kubeconfig`, `--context`, `--region`, `--timeout`, `--json`, `--days`(14, 1–90 밖이면 종료 코드 2). GatherK8s → AWS 로드·WithAWS(계정) → `DailyBill(region, AWSInventory.Accounts, today-N .. today 00:00 UTC)`. 자격증명이 없으면 종료 코드 1. L1이 노드 VPC를 하나도 찾지 못하면(다른 계정/리전 자격증명) 조회 없이 종료 코드 1, 그 외 L1이 없으면(instance ID 없음, 조회 실패) REGION만 + 경고. 출력은 `report.BillTable`(WATERFALL: family×side의 USD·GB·$/GB, xaz-free 제외 TOTAL, xaz-free 줄, 미확정 날, WARNINGS; Unknown이면 금액 없이 "청구: 모름") 또는 `report.BillJSON`(`model.BillReport` = region·accounts·metric + Bill).
+bill: `--kubeconfig`, `--context`, `--region`, `--timeout`, `--json`, `--days`(14, 1–90 밖이면 종료 코드 2). GatherK8s → AWS 로드·WithAWS(계정) → `DailyBill(region, AWSInventory.Accounts, today-N .. today 00:00 UTC)`. 자격증명이 없으면 종료 코드 1. L1이 노드 VPC를 하나도 찾지 못하면(다른 계정/리전 자격증명) 조회 없이 종료 코드 1, 그 외 L1이 없으면(instance ID 없음, 조회 실패) REGION만 + 경고. 출력은 `report.BillTable`(WATERFALL: family×side의 USD·GB·$/GB, xaz-free 제외 TOTAL, xaz-free 줄, 미확정 날, WARNINGS; Unknown이면 금액 없이 "Bill: unknown, not $0") 또는 `report.BillJSON`(`model.BillReport` = region·accounts·metric + Bill).
 리전: `--region` > snapshot.Region(노드 라벨) > AWS 설정. 클러스터 이름: `--cluster` > kubeconfig 컨텍스트의 cluster(EKS ARN이면 `/` 뒤).
 
 ---

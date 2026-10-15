@@ -41,6 +41,6 @@
     "2026-09-21T00:00:00Z"
   ],
   "warnings": [
-    "계정을 몰라 LINKED_ACCOUNT 없이 REGION만으로 조회: 같은 리전의 다른 계정 청구가 섞일 수 있음"
+    "accounts unknown, so the query filters by REGION only (no LINKED_ACCOUNT): charges of other accounts in the region may be included"
   ]
 }

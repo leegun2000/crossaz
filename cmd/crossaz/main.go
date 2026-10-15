@@ -29,7 +29,7 @@ const (
 )
 
 // warnV1FixtureCost: a v1 fixture's monthly "cost" has no daily lines to verify against.
-const warnV1FixtureCost = "v1 fixture의 월별 cost는 무시됨 — --verify로 다시 수집"
+const warnV1FixtureCost = "the monthly cost of a v1 fixture is ignored; collect again with --verify"
 
 const usageText = `crossaz finds cross-AZ traffic paths that are actually billed in an EKS cluster (read-only).
 
@@ -159,7 +159,7 @@ func billCommand(o options, stdout io.Writer, src sources) error {
 	}
 	// A region-only query would bill and report an account that may not own the cluster at all.
 	if s.AWS == nil && slices.Contains(s.Warnings, collect.WarnNoVPCs) {
-		return errors.New("bill: L1이 클러스터 노드를 찾지 못함(다른 계정/리전 자격증명?) — AWS_PROFILE/--region 확인")
+		return errors.New("bill: L1 found none of the cluster's nodes (credentials for another account or region?); check AWS_PROFILE/--region")
 	}
 	if s.Region == "" {
 		return errors.New("bill: region unknown, use --region")

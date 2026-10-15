@@ -21,10 +21,10 @@ import (
 
 const (
 	credentialsTimeout   = 10 * time.Second
-	warnNoAWSCredentials = "L1: AWS 자격증명을 찾지 못해 L0만 실행"
+	warnNoAWSCredentials = "L1: no AWS credentials found; running L0 only"
 	// Without L1 the credentials may belong to another account, so Cost Explorer would bill and report the wrong one.
-	warnVerifyWithoutL1          = "L3: L1(AWS 인벤토리)을 얻지 못해 --verify 건너뜀"
-	warnFixtureIgnoresCollection = "--fixture 사용 중: --prometheus-url/--verify는 무시됨 (fixture에 포함된 레이어만 사용)"
+	warnVerifyWithoutL1          = "L3: --verify skipped because L1 (the AWS inventory) is unavailable"
+	warnFixtureIgnoresCollection = "--fixture in use: --prometheus-url/--verify are ignored (only the layers in the fixture are used)"
 	// verifyDays is the closed-day window scan --verify compares against.
 	verifyDays = 14
 )

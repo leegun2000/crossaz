@@ -192,7 +192,7 @@ func TestAnalyzeWarnings(t *testing.T) {
 		{
 			name:     "region without a built-in rate warns with the default rate",
 			snapshot: model.Snapshot{Region: "cn-north-1", Nodes: zonal("cn-north-1a")},
-			want:     []string{"리전 cn-north-1 요율이 내장되어 있지 않아 기본값 $0.02/GB 사용 — --rate-gb로 지정"},
+			want:     []string{"no built-in rate for region cn-north-1, using the default $0.02/GB; set --rate-gb"},
 		},
 		{
 			name:     "rate override silences the missing region rate",
@@ -202,22 +202,22 @@ func TestAnalyzeWarnings(t *testing.T) {
 		{
 			name:     "unknown region asks for --region or --rate-gb and skips the zone check",
 			snapshot: model.Snapshot{Nodes: zonal("us-west-2-lax-1a")},
-			want:     []string{"리전을 알 수 없어 기본값 $0.02/GB 사용 — --region 또는 --rate-gb로 지정"},
+			want:     []string{"region unknown, using the default $0.02/GB; set --region or --rate-gb"},
 		},
 		{
 			name:     "local and wavelength zone nodes are listed once, sorted",
 			snapshot: model.Snapshot{Region: "us-west-2", Nodes: zonal("us-west-2a", "us-west-2-wl1-sea-wlz-1", "us-west-2-lax-1a", "us-west-2-lax-1a", "")},
-			want:     []string{"Local/Wavelength Zone 노드 발견(us-west-2-lax-1a, us-west-2-wl1-sea-wlz-1): 요율이 달라 해당 경로 금액 생략"},
+			want:     []string{"Local/Wavelength Zone nodes found (us-west-2-lax-1a, us-west-2-wl1-sea-wlz-1): their rate differs, so amounts of paths touching them are omitted"},
 		},
 		{
 			name:     "collection warnings come first",
-			snapshot: model.Snapshot{Region: "cn-north-1", Warnings: []string{"L1: 서브넷: denied"}},
-			want:     []string{"L1: 서브넷: denied", "리전 cn-north-1 요율이 내장되어 있지 않아 기본값 $0.02/GB 사용 — --rate-gb로 지정"},
+			snapshot: model.Snapshot{Region: "cn-north-1", Warnings: []string{"L1: subnets: denied"}},
+			want:     []string{"L1: subnets: denied", "no built-in rate for region cn-north-1, using the default $0.02/GB; set --rate-gb"},
 		},
 		{
 			name:     "a zone that only shares the region prefix is not regular",
 			snapshot: model.Snapshot{Region: "us-east-1", Nodes: zonal("us-east-1A", "us-east-1bb")},
-			want:     []string{"Local/Wavelength Zone 노드 발견(us-east-1A, us-east-1bb): 요율이 달라 해당 경로 금액 생략"},
+			want:     []string{"Local/Wavelength Zone nodes found (us-east-1A, us-east-1bb): their rate differs, so amounts of paths touching them are omitted"},
 		},
 	}
 	for _, tt := range tests {
@@ -289,7 +289,7 @@ func TestAnalyzeBlanksLocalZoneAmounts(t *testing.T) {
 			name:         "path touching a Local Zone keeps bytes but loses its amount and confidence",
 			snapshot:     snapshot("us-west-2a", "us-west-2-lax-1a"),
 			wantConf:     model.Low,
-			wantNote:     "Local/Wavelength Zone 포함: 요율이 달라 금액 생략",
+			wantNote:     "touches a Local/Wavelength Zone: different rate, amount omitted",
 			wantExposure: model.ExposureLikely,
 		},
 		{

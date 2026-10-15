@@ -30,7 +30,7 @@ func Table(w io.Writer, r model.ScanResult) error {
 
 func writeNoExposure(b *bytes.Buffer, r model.ScanResult) {
 	fmt.Fprintf(b, "Cluster: %s   AZs: %d   Nodes: %d\n", clean(r.Cluster), len(r.Zones), r.NodeCount)
-	fmt.Fprintln(b, "Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습니다.")
+	fmt.Fprintln(b, "Exposure: NONE — all nodes are in a single AZ and there is no billable path.")
 	writeWarnings(b, r.Warnings)
 }
 
@@ -91,7 +91,7 @@ func ruleNote(p model.Path) string {
 }
 
 func writeTotal(b *bytes.Buffer, r model.ScanResult) {
-	total := "? (L2 없음 — --prometheus-url)"
+	total := "? (no L2 — --prometheus-url)"
 	if r.TotalUSD != nil {
 		total = USD(r.TotalUSD, true) + "/mo"
 	}
@@ -117,7 +117,7 @@ func writeUnconfirmed(b *bytes.Buffer, r model.ScanResult) {
 	if r.UnconfirmedMaxUSD != nil {
 		upper = dollars(*r.UnconfirmedMaxUSD) + "/mo"
 	}
-	fmt.Fprintf(b, "미확정: $0–%s (billable 미확정 경로 %d개, 총액 제외)\n", upper, n)
+	fmt.Fprintf(b, "Unconfirmed: $0–%s (%s with undecided billing, not in the total)\n", upper, count(n, "path"))
 }
 
 func writeVerify(b *bytes.Buffer, v *model.VerifyResult) {
@@ -144,13 +144,13 @@ func writeVerify(b *bytes.Buffer, v *model.VerifyResult) {
 	}
 	provisional := ""
 	if v.EstimatedDays > 0 {
-		provisional = fmt.Sprintf(", 미확정 %d일 포함(잠정)", v.EstimatedDays)
+		provisional = fmt.Sprintf(", %s provisional (Estimated)", count(v.EstimatedDays, "day"))
 	}
-	fmt.Fprintf(b, "  Actual:     %s   (Cost Explorer %s InterZone, %s %d일 기준%s — 계정·리전 전체)\n",
-		actual, clean(usage), clean(v.Window), v.Days, provisional)
+	fmt.Fprintf(b, "  Actual:     %s   (Cost Explorer %s InterZone, %s, %s%s; whole account and region)\n",
+		actual, clean(usage), clean(v.Window), count(v.Days, "day"), provisional)
 	fmt.Fprintf(b, "  Ratio:      %s   %s\n\n", ratio, clean(v.Note))
-	fmt.Fprintf(b, "  Ratio > %g → 제외 규칙 누락 의심\n", model.VerifyRatioHigh)
-	fmt.Fprintf(b, "  Ratio < %g → 클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심\n", model.VerifyRatioLow)
+	fmt.Fprintf(b, "  Ratio > %g → suspect a missing exclusion rule\n", model.VerifyRatioHigh)
+	fmt.Fprintf(b, "  Ratio < %g → suspect leaks outside the cluster (RDS/MSK/NLB/other workloads)\n", model.VerifyRatioLow)
 }
 
 func writeWarnings(b *bytes.Buffer, warnings []string) {

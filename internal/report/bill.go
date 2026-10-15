@@ -31,12 +31,12 @@ func BillTable(w io.Writer, r model.BillReport) error {
 	var b bytes.Buffer
 	accounts := strings.Join(r.Accounts, ",")
 	if accounts == "" {
-		accounts = unknownMark + " (REGION만 필터)"
+		accounts = unknownMark + " (filtered by REGION only)"
 	}
-	fmt.Fprintf(&b, "Region: %s   Accounts: %s   Window: %s..%s (UTC, %d일)   Metric: %s\n",
-		clean(r.Region), clean(accounts), r.From.Format(billDayLayout), r.To.AddDate(0, 0, -1).Format(billDayLayout), r.Days(), clean(r.Metric))
+	fmt.Fprintf(&b, "Region: %s   Accounts: %s   Window: %s..%s (UTC, %s)   Metric: %s\n",
+		clean(r.Region), clean(accounts), r.From.Format(billDayLayout), r.To.AddDate(0, 0, -1).Format(billDayLayout), count(r.Days(), "day"), clean(r.Metric))
 	if r.Unknown {
-		fmt.Fprintln(&b, "\n청구: 모름 — $0이 아님. 이유는 WARNINGS")
+		fmt.Fprintln(&b, "\nBill: unknown, not $0. See WARNINGS for why")
 	} else if err := writeWaterfall(&b, r.Lines); err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func BillTable(w io.Writer, r model.BillReport) error {
 		for i, d := range days {
 			labels[i] = d.Format(billDayLayout)
 		}
-		fmt.Fprintf(&b, "미확정(Estimated) 날: %s — 금액이 바뀔 수 있음(TOTAL 포함)\n", strings.Join(labels, ", "))
+		fmt.Fprintf(&b, "Not final (Estimated) days: %s; amounts may still change (included in TOTAL)\n", strings.Join(labels, ", "))
 	}
 	writeWarnings(&b, r.Warnings)
 	return flushTo(w, &b)
@@ -77,7 +77,7 @@ func writeWaterfall(b *bytes.Buffer, lines []model.BillLine) error {
 	if err := writeTable(b, rows); err != nil {
 		return err
 	}
-	fmt.Fprintln(b, "xaz-free는 $0(PrivateLink/TGW/Client VPN)이라 TOTAL에서 제외")
+	fmt.Fprintln(b, "xaz-free is $0 (PrivateLink/TGW/Client VPN) and left out of TOTAL")
 	return nil
 }
 

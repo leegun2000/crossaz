@@ -11,5 +11,5 @@ UNCERTAIN
 SERVICE              ROUTE       RECV/mo   AZ SPREAD   EST $/mo   CONF   NOTE
 default/kubernetes   clusterip   ?         0/1         ?          low    zone-unknown
 
-Estimated total: ? (L2 없음 — --prometheus-url)
-미확정: $0–? (billable 미확정 경로 1개, 총액 제외)
+Estimated total: ? (no L2 — --prometheus-url)
+Unconfirmed: $0–? (1 path with undecided billing, not in the total)

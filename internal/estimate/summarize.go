@@ -9,7 +9,7 @@ import (
 	"github.com/leegun2000/crossaz/internal/model"
 )
 
-const warnTotalMissesPaths = "추정 총액에 볼륨을 측정하지 못한 과금 경로 %d개가 빠져 있음"
+const warnTotalMissesPaths = "the estimated total leaves out %d billable path(s) whose volume could not be measured"
 
 // sections is the split of paths into ScanResult sections.
 type sections struct {

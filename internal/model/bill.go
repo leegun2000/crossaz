@@ -10,7 +10,7 @@ import (
 // Tri is a three-valued verdict. rules.yaml writes billable as a YAML bool or "unknown"; JSON output is a string.
 type Tri string
 
-// Tri values. Unknown is neither $0 nor billed: it gets its own "미확정" line, never the total.
+// Tri values. Unknown is neither $0 nor billed: it gets its own "Unconfirmed" line, never the total.
 const (
 	TriTrue    Tri = "true"
 	TriFalse   Tri = "false"
@@ -78,7 +78,7 @@ func (l BillLine) Side() Side {
 	return ""
 }
 
-// Bill is the daily Cost Explorer bill for [From, To). Unknown is "모름", never $0:
+// Bill is the daily Cost Explorer bill for [From, To). Unknown means "unknown", never $0:
 // AccessDenied, DataUnavailable or an empty result.
 type Bill struct {
 	From     time.Time   `json:"from"` // first UTC day

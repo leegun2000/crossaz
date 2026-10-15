@@ -205,7 +205,7 @@ func TestSummarizeWarnsWhenTotalMissesUnmeasuredPaths(t *testing.T) {
 			hasVolume:    true,
 			paths:        []model.Path{measured, unmeasured, summaryPath("ns/unmeasured-2", model.TriTrue, model.Low, nil)},
 			wantTotal:    ptr(5),
-			wantWarnings: []string{"L1: rds: denied", "추정 총액에 볼륨을 측정하지 못한 과금 경로 2개가 빠져 있음"},
+			wantWarnings: []string{"L1: rds: denied", "the estimated total leaves out 2 billable path(s) whose volume could not be measured"},
 		},
 		{
 			name:         "every path measured adds no warning",

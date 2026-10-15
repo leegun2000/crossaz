@@ -45,6 +45,6 @@
   "ingresses": [],
   "ingressClasses": [],
   "warnings": [
-    "L1: AWS 자격증명을 찾지 못해 L0만 실행"
+    "L1: no AWS credentials found; running L0 only"
   ]
 }

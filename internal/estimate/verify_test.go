@@ -49,18 +49,18 @@ func TestVerify(t *testing.T) {
 		wantRatio     *float64
 		wantNote      string
 	}{
-		{"estimate nil cannot compare", nil, verifyBill(2, 0), ptr(60), 0, nil, "L2(--prometheus-url) 없이는 비교 불가"},
-		{"actual zero", ptr(133), verifyBill(0, 0), ptr(0), 0, nil, "해당 기간 InterZone 실제 비용 0"},
-		{"ratio above 1.5 is over-estimate", ptr(120), verifyBill(2, 0), ptr(60), 0, ptr(2), "추정 과대: 제외 규칙 누락 의심"},
-		{"ratio below 0.5 is leak", ptr(6), verifyBill(2, 0), ptr(60), 0, ptr(0.1), "클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심"},
-		{"ratio in range", ptr(66), verifyBill(2, 0), ptr(60), 0, ptr(1.1), "제외 규칙이 대체로 맞음"},
-		{"ratio exactly 1.5 is in range", ptr(90), verifyBill(2, 0), ptr(60), 0, ptr(1.5), "제외 규칙이 대체로 맞음"},
-		{"ratio exactly 0.5 is in range", ptr(30), verifyBill(2, 0), ptr(60), 0, ptr(0.5), "제외 규칙이 대체로 맞음"},
-		{"zero estimate has no ratio but suggests leak", ptr(0), verifyBill(2, 0), ptr(60), 0, nil, "클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심"},
-		{"estimated days are summed and counted", ptr(60), verifyBill(2, 2), ptr(60), 2, ptr(1), "제외 규칙이 대체로 맞음"},
-		{"all days estimated still compares", ptr(60), verifyBill(2, 14), ptr(60), 14, ptr(1), "제외 규칙이 대체로 맞음"},
-		{"estimated day without lines is counted", ptr(60), withNotFinal(verifyBill(2, 1), verifyFrom), ptr(60), 2, ptr(1), "제외 규칙이 대체로 맞음"},
-		{"unknown bill is unknown, not zero", ptr(60), unknown, nil, 0, nil, "Cost Explorer 청구 모름 — 비교 불가"},
+		{"estimate nil cannot compare", nil, verifyBill(2, 0), ptr(60), 0, nil, "cannot compare without L2 (--prometheus-url)"},
+		{"actual zero", ptr(133), verifyBill(0, 0), ptr(0), 0, nil, "actual InterZone cost for the period is 0"},
+		{"ratio above 1.5 is over-estimate", ptr(120), verifyBill(2, 0), ptr(60), 0, ptr(2), "overestimate: suspect a missing exclusion rule"},
+		{"ratio below 0.5 is leak", ptr(6), verifyBill(2, 0), ptr(60), 0, ptr(0.1), "suspect leaks outside the cluster (RDS/MSK/NLB/other workloads)"},
+		{"ratio in range", ptr(66), verifyBill(2, 0), ptr(60), 0, ptr(1.1), "exclusion rules look broadly right"},
+		{"ratio exactly 1.5 is in range", ptr(90), verifyBill(2, 0), ptr(60), 0, ptr(1.5), "exclusion rules look broadly right"},
+		{"ratio exactly 0.5 is in range", ptr(30), verifyBill(2, 0), ptr(60), 0, ptr(0.5), "exclusion rules look broadly right"},
+		{"zero estimate has no ratio but suggests leak", ptr(0), verifyBill(2, 0), ptr(60), 0, nil, "suspect leaks outside the cluster (RDS/MSK/NLB/other workloads)"},
+		{"estimated days are summed and counted", ptr(60), verifyBill(2, 2), ptr(60), 2, ptr(1), "exclusion rules look broadly right"},
+		{"all days estimated still compares", ptr(60), verifyBill(2, 14), ptr(60), 14, ptr(1), "exclusion rules look broadly right"},
+		{"estimated day without lines is counted", ptr(60), withNotFinal(verifyBill(2, 1), verifyFrom), ptr(60), 2, ptr(1), "exclusion rules look broadly right"},
+		{"unknown bill is unknown, not zero", ptr(60), unknown, nil, 0, nil, "Cost Explorer bill unknown: cannot compare"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

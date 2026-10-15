@@ -117,6 +117,6 @@
     }
   ],
   "warnings": [
-    "모르는 operation \"Mystery\": family other로 분류(총액 포함)"
+    "unknown operation \"Mystery\": classified as family other (included in the total)"
   ]
 }

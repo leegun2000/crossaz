@@ -133,6 +133,14 @@ func zoneList(d model.AZDistribution) string {
 	return orDash(strings.Join(parts, " "))
 }
 
+// count renders "1 day" / "3 days".
+func count(n int, noun string) string {
+	if n == 1 {
+		return fmt.Sprintf("1 %s", noun)
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
+}
+
 func orDash(s string) string {
 	if s == "" {
 		return notBilledMark

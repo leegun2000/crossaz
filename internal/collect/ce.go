@@ -26,10 +26,10 @@ const (
 	ceUsageTypeSuffix = "DataTransfer-Regional-Bytes"
 	ceDateLayout      = "2006-01-02"
 
-	ceWarnNoAccounts       = "계정을 몰라 LINKED_ACCOUNT 없이 REGION만으로 조회: 같은 리전의 다른 계정 청구가 섞일 수 있음"
-	ceWarnUnknownOperation = "모르는 operation %q: family other로 분류(총액 포함)"
-	ceWarnUnknownBill      = "Cost Explorer 청구 모름(%s): $0 아님 — %v"
-	ceWarnEmptyBill        = "Cost Explorer 청구 모름(빈 결과): $0 아님 — 권한·필터·데이터 지연 확인"
+	ceWarnNoAccounts       = "accounts unknown, so the query filters by REGION only (no LINKED_ACCOUNT): charges of other accounts in the region may be included"
+	ceWarnUnknownOperation = "unknown operation %q: classified as family other (included in the total)"
+	ceWarnUnknownBill      = "Cost Explorer bill unknown (%s), not $0: %v"
+	ceWarnEmptyBill        = "Cost Explorer bill unknown (empty result), not $0: check permissions, filters and data delay"
 )
 
 // ceUnknownCodes are the API error codes that mean "the bill is unknown", not a failure of the run.

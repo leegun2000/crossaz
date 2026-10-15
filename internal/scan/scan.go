@@ -38,7 +38,7 @@ func analysisWarnings(s model.Snapshot, rs model.RuleSet, o Options, zones []str
 		out = append(out, w)
 	}
 	if len(zones) > 0 {
-		out = append(out, fmt.Sprintf("Local/Wavelength Zone 노드 발견(%s): 요율이 달라 해당 경로 금액 생략", strings.Join(zones, ", ")))
+		out = append(out, fmt.Sprintf("Local/Wavelength Zone nodes found (%s): their rate differs, so amounts of paths touching them are omitted", strings.Join(zones, ", ")))
 	}
 	return out
 }
@@ -71,9 +71,9 @@ func rateWarning(region string, rs model.RuleSet, override float64) string {
 		return ""
 	}
 	if region == "" {
-		return fmt.Sprintf("리전을 알 수 없어 기본값 $%g/GB 사용 — --region 또는 --rate-gb로 지정", rs.DefaultRateGB)
+		return fmt.Sprintf("region unknown, using the default $%g/GB; set --region or --rate-gb", rs.DefaultRateGB)
 	}
-	return fmt.Sprintf("리전 %s 요율이 내장되어 있지 않아 기본값 $%g/GB 사용 — --rate-gb로 지정", region, rs.DefaultRateGB)
+	return fmt.Sprintf("no built-in rate for region %s, using the default $%g/GB; set --rate-gb", region, rs.DefaultRateGB)
 }
 
 // localZones returns the sorted distinct node zones that are not a regular AZ "<region><letter>".

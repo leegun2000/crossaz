@@ -4,6 +4,6 @@
   "lines": [],
   "unknown": true,
   "warnings": [
-    "Cost Explorer 청구 모름(DataUnavailableException): $0 아님 — DataUnavailableException: Data is not available. Please try to adjust the time period."
+    "Cost Explorer bill unknown (DataUnavailableException), not $0: DataUnavailableException: Data is not available. Please try to adjust the time period."
   ]
 }

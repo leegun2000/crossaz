@@ -66,7 +66,7 @@ func sensitiveSnapshot() model.Snapshot {
 		},
 		Volume:   &model.VolumeData{Window: "7d", RecvBytesPerS: map[string]float64{"edge/gateway-0": 12}},
 		Bill:     &model.Bill{Lines: []model.BillLine{{Account: origAccount, UsageType: "APN2-DataTransfer-Regional-Bytes", Operation: "InterZone-In", Family: model.FamilyInterZone, USD: 10}}},
-		Warnings: []string{"L1: 엔드포인트 IP의 AZ: DescribeNetworkInterfaces " + origAPIIP + " in " + origVPC + ": throttled"},
+		Warnings: []string{"L1: endpoint IP AZs: DescribeNetworkInterfaces " + origAPIIP + " in " + origVPC + ": throttled"},
 	}
 }
 
@@ -319,30 +319,30 @@ func TestAnonymizeRedactsWarningErrorText(t *testing.T) {
 	}{
 		{
 			name:    "layer and subject are kept and AWS error text quoting replaced values is redacted",
-			warning: "L1: 엔드포인트 IP의 AZ: DescribeNetworkInterfaces " + origAPIIP + " in " + origVPC + ": throttled",
-			want:    func(model.Snapshot) string { return "L1: 엔드포인트 IP의 AZ: <redacted>" },
+			warning: "L1: endpoint IP AZs: DescribeNetworkInterfaces " + origAPIIP + " in " + origVPC + ": throttled",
+			want:    func(model.Snapshot) string { return "L1: endpoint IP AZs: <redacted>" },
 		},
 		{
 			name:    "access denied with account ID, principal ARN, email and LB name is redacted",
-			warning: "L1: 로드밸런서: load balancer k8s-payments-secretapi-0123abcd: operation error: AccessDenied: User: " + principal + " is not authorized",
-			want:    func(model.Snapshot) string { return "L1: 로드밸런서: <redacted>" },
+			warning: "L1: load balancers: load balancer k8s-payments-secretapi-0123abcd: operation error: AccessDenied: User: " + principal + " is not authorized",
+			want:    func(model.Snapshot) string { return "L1: load balancers: <redacted>" },
 		},
 		{
 			name:    "credential error with a home directory path is redacted",
-			warning: "L1: AWS 자격증명을 찾지 못해 L0만 실행: failed to read cached SSO token file, open " + homePath + ": no such file or directory",
-			want:    func(model.Snapshot) string { return "L1: AWS 자격증명을 찾지 못해 L0만 실행: <redacted>" },
+			warning: "L1: no AWS credentials found; running L0 only: failed to read cached SSO token file, open " + homePath + ": no such file or directory",
+			want:    func(model.Snapshot) string { return "L1: no AWS credentials found; running L0 only: <redacted>" },
 		},
 		{
 			name:    "two-segment warning is kept with replaced values scrubbed",
-			warning: "L1: 노드 " + origInstance + " 인스턴스 ID 없음",
+			warning: "L1: node " + origInstance + " has no instance ID",
 			want: func(anon model.Snapshot) string {
-				return "L1: 노드 " + anon.Nodes[0].InstanceID + " 인스턴스 ID 없음"
+				return "L1: node " + anon.Nodes[0].InstanceID + " has no instance ID"
 			},
 		},
 		{
 			name:    "warning without separator is kept",
-			warning: "--fixture 사용 중",
-			want:    func(model.Snapshot) string { return "--fixture 사용 중" },
+			warning: "--fixture in use",
+			want:    func(model.Snapshot) string { return "--fixture in use" },
 		},
 	}
 	for _, tt := range tests {

@@ -95,7 +95,7 @@ func TestRunCommands(t *testing.T) {
 		{"scan reports a missing fixture", []string{"scan", "--fixture", "nope.json"}, exitError, "", "open fixture"},
 		{"scan reports a bad rules file before collecting", []string{"scan", "--fixture", prodFixture, "--rules", "nope.yaml"}, exitError, "", "read rules"},
 		{"scan applies --cluster and --region to a fixture", []string{"scan", "--fixture", prodFixture, "--cluster", "renamed", "--region", "eu-west-1"}, exitOK, "Cluster: renamed   Region: eu-west-1", ""},
-		{"scan warns about a region without a built-in rate", []string{"scan", "--fixture", prodFixture, "--region", "cn-north-1"}, exitOK, "리전 cn-north-1 요율이 내장되어 있지 않아", ""},
+		{"scan warns about a region without a built-in rate", []string{"scan", "--fixture", prodFixture, "--region", "cn-north-1"}, exitOK, "no built-in rate for region cn-north-1", ""},
 		{"scan --threshold 0 hides nothing", []string{"scan", "--fixture", prodFixture, "--threshold", "0"}, exitOK, "kube-system/kube-dns", ""},
 		{"explain accepts flags after the key", []string{"explain", "payments/api", "--fixture", prodFixture}, exitOK, "rule:        clusterip-cross-az", ""},
 		{"explain accepts flags before the key", []string{"explain", "--fixture", prodFixture, "rds/orders-db"}, exitOK, "rds-multiaz-replication", ""},
@@ -105,8 +105,8 @@ func TestRunCommands(t *testing.T) {
 		{"explain rejects two keys", []string{"explain", "a/b", "c/d", "--fixture", prodFixture}, exitUsage, "", "want 1 argument(s), got 2"},
 		{"explain has no --json flag", []string{"explain", "a/b", "--json"}, exitUsage, "", "flag provided but not defined: -json"},
 		{"explain reports a bad rules file", []string{"explain", "a/b", "--rules", "nope.yaml"}, exitError, "", "read rules"},
-		{"explain prints analysis warnings to stderr", []string{"explain", "payments/api", "--fixture", prodFixture, "--region", "cn-north-1"}, exitOK, "", "crossaz: warning: 리전 cn-north-1 요율이 내장되어 있지 않아"},
-		{"explain prints warnings even when no path matches", []string{"explain", "nope/missing", "--fixture", prodFixture, "--region", "cn-north-1"}, exitError, "", "crossaz: warning: 리전 cn-north-1 요율이 내장되어 있지 않아"},
+		{"explain prints analysis warnings to stderr", []string{"explain", "payments/api", "--fixture", prodFixture, "--region", "cn-north-1"}, exitOK, "", "crossaz: warning: no built-in rate for region cn-north-1"},
+		{"explain prints warnings even when no path matches", []string{"explain", "nope/missing", "--fixture", prodFixture, "--region", "cn-north-1"}, exitError, "", "crossaz: warning: no built-in rate for region cn-north-1"},
 		{"explain has no --verify flag", []string{"explain", "a/b", "--verify"}, exitUsage, "", "flag provided but not defined: -verify"},
 		{"scan warns that --fixture ignores --prometheus-url", []string{"scan", "--fixture", prodFixture, "--prometheus-url", "http://127.0.0.1:1"}, exitOK, warnFixtureIgnoresCollection, ""},
 		{"scan warns that --fixture ignores --verify", []string{"scan", "--fixture", prodFixture, "--verify"}, exitOK, warnFixtureIgnoresCollection, ""},
@@ -256,7 +256,7 @@ func TestRunScanReadsV1FixtureWithMonthlyCost(t *testing.T) {
 	code, stdout, stderr := runTest(t, noSources(t), "scan", "--fixture", path)
 
 	// Assert
-	if code != exitOK || !strings.Contains(stdout, "v1 fixture의 월별 cost는 무시됨 — --verify로 다시 수집") {
+	if code != exitOK || !strings.Contains(stdout, "the monthly cost of a v1 fixture is ignored; collect again with --verify") {
 		t.Errorf("exit = %d, stderr = %q, stdout without the v1 cost warning:\n%s", code, stderr, stdout)
 	}
 }

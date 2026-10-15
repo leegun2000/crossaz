@@ -74,7 +74,7 @@ func likelyResult() model.ScanResult {
 			EstimatedUSD:  ptr(133.2),
 			ActualUSD:     ptr(118),
 			Ratio:         ptr(1.1288),
-			Note:          "제외 규칙이 대체로 맞음",
+			Note:          "exclusion rules look broadly right",
 		},
 	}
 }
@@ -116,7 +116,7 @@ func TestTableExposureNonePrintsExactlyTwoLines(t *testing.T) {
 	out := renderTable(t, r)
 
 	// Assert
-	want := "Cluster: dev-b   AZs: 1   Nodes: 3\nExposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습니다.\n"
+	want := "Cluster: dev-b   AZs: 1   Nodes: 3\nExposure: NONE — all nodes are in a single AZ and there is no billable path.\n"
 	if out != want {
 		t.Errorf("Table() =\n%q\nwant\n%q", out, want)
 	}
@@ -154,10 +154,10 @@ func TestTableLikelyResultShowsAllBlocks(t *testing.T) {
 		"Run `crossaz explain payments/api` for rule details.",
 		"VERIFY",
 		"  Estimated:  ~$133/mo",
-		"  Actual:     $118/mo   (Cost Explorer DataTransfer-Regional-Bytes InterZone, 2026-08-18..2026-08-31 14일 기준, 미확정 1일 포함(잠정) — 계정·리전 전체)",
-		"  Ratio:      1.13   제외 규칙이 대체로 맞음",
-		"  Ratio > 1.5 → 제외 규칙 누락 의심",
-		"  Ratio < 0.5 → 클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심",
+		"  Actual:     $118/mo   (Cost Explorer DataTransfer-Regional-Bytes InterZone, 2026-08-18..2026-08-31, 14 days, 1 day provisional (Estimated); whole account and region)",
+		"  Ratio:      1.13   exclusion rules look broadly right",
+		"  Ratio > 1.5 → suspect a missing exclusion rule",
+		"  Ratio < 0.5 → suspect leaks outside the cluster (RDS/MSK/NLB/other workloads)",
 		"WARNINGS",
 		"  - L1: rds: AccessDenied",
 	}
@@ -274,7 +274,7 @@ func TestTableFooterWithoutVolumeLayer(t *testing.T) {
 
 	// Assert
 	for _, want := range []string{
-		"Estimated total: ? (L2 없음 — --prometheus-url)",
+		"Estimated total: ? (no L2 — --prometheus-url)",
 		"  Estimated:  ?",
 		"  Actual:     ?   (Cost Explorer",
 		"  Ratio:      ?   ",
@@ -308,9 +308,9 @@ func TestTableUnconfirmedLine(t *testing.T) {
 		wantRow   []string
 	}{
 		{"known max", []model.Path{uncertainPath(), unknownPath("ns/u", ptr(150e9))}, ptr(3),
-			"미확정: $0–$3.00/mo (billable 미확정 경로 1개, 총액 제외)\n", []string{"150 GB", "?", "low", "zone-unknown"}},
+			"Unconfirmed: $0–$3.00/mo (1 path with undecided billing, not in the total)\n", []string{"150 GB", "?", "low", "zone-unknown"}},
 		{"unknown max", []model.Path{unknownPath("ns/u", nil), unknownPath("ns/v", nil)}, nil,
-			"미확정: $0–? (billable 미확정 경로 2개, 총액 제외)\n", []string{"?", "?", "low", "zone-unknown"}},
+			"Unconfirmed: $0–? (2 paths with undecided billing, not in the total)\n", []string{"?", "?", "low", "zone-unknown"}},
 		{"no unknown paths, no line", []model.Path{uncertainPath()}, nil, "", nil},
 	}
 	for _, tt := range tests {
@@ -325,8 +325,8 @@ func TestTableUnconfirmedLine(t *testing.T) {
 
 			// Assert
 			if tt.wantLine == "" {
-				if strings.Contains(out, "\n미확정:") {
-					t.Errorf("unexpected 미확정 line:\n%s", out)
+				if strings.Contains(out, "\nUnconfirmed:") {
+					t.Errorf("unexpected Unconfirmed line:\n%s", out)
 				}
 				return
 			}

@@ -8,12 +8,12 @@ import (
 )
 
 const (
-	noteNoEstimate   = "L2(--prometheus-url) 없이는 비교 불가"
-	noteNoActual     = "해당 기간 InterZone 실제 비용 0"
-	noteBillUnknown  = "Cost Explorer 청구 모름 — 비교 불가"
-	noteOverEstimate = "추정 과대: 제외 규칙 누락 의심"
-	noteLeak         = "클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심"
-	noteInRange      = "제외 규칙이 대체로 맞음"
+	noteNoEstimate   = "cannot compare without L2 (--prometheus-url)"
+	noteNoActual     = "actual InterZone cost for the period is 0"
+	noteBillUnknown  = "Cost Explorer bill unknown: cannot compare"
+	noteOverEstimate = "overestimate: suspect a missing exclusion rule"
+	noteLeak         = "suspect leaks outside the cluster (RDS/MSK/NLB/other workloads)"
+	noteInRange      = "exclusion rules look broadly right"
 
 	daySeconds   = 24 * 3600
 	windowLayout = "2006-01-02"

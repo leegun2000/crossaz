@@ -225,7 +225,7 @@ type Path struct {
 
 // NoteLocalZone is the ConfidenceNote of a path touching a Local/Wavelength Zone: the parent region's RateGB
 // does not apply there (billing-rules.md §1.2), so no amount or upper bound is computed from it.
-const NoteLocalZone = "Local/Wavelength Zone 포함: 요율이 달라 금액 생략"
+const NoteLocalZone = "touches a Local/Wavelength Zone: different rate, amount omitted"
 
 // Key is "namespace/name" for services, "kind/ref" otherwise. Used by `crossaz explain`.
 func (p Path) Key() string {

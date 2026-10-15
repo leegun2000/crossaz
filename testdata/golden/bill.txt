@@ -1,4 +1,4 @@
-Region: us-east-1   Accounts: 111122223333   Window: 2026-08-31..2026-09-13 (UTC, 14일)   Metric: UnblendedCost
+Region: us-east-1   Accounts: 111122223333   Window: 2026-08-31..2026-09-13 (UTC, 14 days)   Metric: UnblendedCost
 
 WATERFALL
 FAMILY      SIDE   USD      GB        $/GB
@@ -8,8 +8,8 @@ publicip    Out    $7.00    700.00    0.0100
 other       ?      $0.25    25.00     0.0100
 TOTAL              $35.25   3525.00   0.0100
 xaz-free    In     $0.00    420.00    0.0000
-xaz-free는 $0(PrivateLink/TGW/Client VPN)이라 TOTAL에서 제외
-미확정(Estimated) 날: 2026-09-13 — 금액이 바뀔 수 있음(TOTAL 포함)
+xaz-free is $0 (PrivateLink/TGW/Client VPN) and left out of TOTAL
+Not final (Estimated) days: 2026-09-13; amounts may still change (included in TOTAL)
 
 WARNINGS
-  - 모르는 operation "Mystery": family other로 분류(총액 포함)
+  - unknown operation "Mystery": classified as family other (included in the total)

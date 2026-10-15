@@ -13,11 +13,11 @@ const MonthSeconds = 30 * 24 * 3600
 const bytesPerGB = 1e9
 
 const (
-	noteExternal    = "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음"
-	noteNoVolume    = "L2 없음: --prometheus-url로 볼륨 추정"
-	noteNoMetrics   = "엔드포인트 pod 메트릭 없음"
-	noteNoZones     = "엔드포인트 AZ를 알 수 없어 cross-AZ 비율 계산 불가"
-	noteLowNoAmount = "판정 신뢰도 low: 금액 생략"
+	noteExternal    = "target outside the cluster: traffic and volume unknown"
+	noteNoVolume    = "no L2: estimate volume with --prometheus-url"
+	noteNoMetrics   = "no metrics for the endpoint pods"
+	noteNoZones     = "endpoint AZs unknown: cannot compute the cross-AZ fraction"
+	noteLowNoAmount = "low verdict confidence: amount omitted"
 )
 
 // Estimate fills CrossAZFrac, BytesPerMo, CostPerMo and adjusts Confidence for classified paths.
@@ -63,7 +63,7 @@ func estimatePath(p model.Path, vol *model.VolumeData, idx podIndex) model.Path 
 	}
 	bytes := recv * MonthSeconds
 	p.BytesPerMo = &bytes
-	// "애매하면 Low로 표시하고 금액을 비운다": a low-confidence verdict never carries a number.
+	// "When in doubt, mark it Low and leave the amount blank": a low-confidence verdict never carries a number.
 	if p.Confidence == model.Low {
 		p.ConfidenceNote = noteLowNoAmount
 		return p

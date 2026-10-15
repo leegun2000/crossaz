@@ -102,7 +102,7 @@ func (f fakeBill) DailyBill(_ context.Context, region string, accounts []string,
 // testBill has $2/day of InterZone (the last day not final), PublicIP and $0 xAZ lines, and an unknown operation.
 func testBill(from, to time.Time) model.Bill {
 	const regional = "DataTransfer-Regional-Bytes"
-	b := model.Bill{From: from, To: to, Warnings: []string{`모르는 operation "Mystery": family other로 분류(총액 포함)`}}
+	b := model.Bill{From: from, To: to, Warnings: []string{`unknown operation "Mystery": classified as family other (included in the total)`}}
 	for day := from; day.Before(to); day = day.AddDate(0, 0, 1) {
 		estimated := day.Equal(to.AddDate(0, 0, -1))
 		b.Lines = append(b.Lines,
@@ -297,7 +297,7 @@ func TestRunLiveCommandsAndFailures(t *testing.T) {
 		{"bill reports collection failure", liveFake{kubeErr: errors.New("boom")}, []string{"bill"}, exitError, "", "boom"},
 		{"bill needs AWS credentials", liveFake{awsErr: errors.New("expired token")}, []string{"bill"}, exitError, "", "bill needs AWS credentials: " + warnNoAWSCredentials + ": expired token"},
 		{"bill fails on a Cost Explorer error", liveFake{billErr: errors.New("ce:GetCostAndUsage: throttled")}, []string{"bill"}, exitError, "", "crossaz: ce:GetCostAndUsage: throttled"},
-		{"verify turns a Cost Explorer error into a warning", liveFake{billErr: errors.New("throttled")}, []string{"scan", "--verify"}, exitOK, "L3: 일별 청구: throttled", ""},
+		{"verify turns a Cost Explorer error into a warning", liveFake{billErr: errors.New("throttled")}, []string{"scan", "--verify"}, exitOK, "L3: daily bill: throttled", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -569,7 +569,7 @@ func TestRunBillRefusesWhenL1FindsNoNodeVPC(t *testing.T) {
 	code, _, stderr := runTest(t, fake.sources(), "bill")
 
 	// Assert
-	if code != exitError || !strings.Contains(stderr, "bill: L1이 클러스터 노드를 찾지 못함") {
+	if code != exitError || !strings.Contains(stderr, "bill: L1 found none of the cluster's nodes") {
 		t.Errorf("exit = %d, stderr = %q, want exit %d and the no-VPC error", code, stderr, exitError)
 	}
 	if len(fake.billCalls) != 0 {
@@ -588,7 +588,7 @@ func TestRunBillQuery(t *testing.T) {
 		{"accounts from L1 and the default 14 closed days", liveFake{}, []string{"bill"}, "us-east-1 [111122223333] 2026-08-31..2026-09-14", nil},
 		{"--days and --region", liveFake{}, []string{"bill", "--days", "90", "--region", "eu-west-1"}, "eu-west-1 [111122223333] 2026-06-16..2026-09-14", nil},
 		{"without L1 accounts the query is region only", liveFake{vpcErr: errors.New("throttled")}, []string{"bill"}, "us-east-1 [] 2026-08-31..2026-09-14",
-			[]string{"L1: 노드 인스턴스 VPC: throttled"}},
+			[]string{"L1: node instance VPCs: throttled"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

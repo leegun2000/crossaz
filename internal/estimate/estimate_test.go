@@ -215,14 +215,14 @@ func TestEstimateVolumeAndConfidence(t *testing.T) {
 			},
 			snap:     model.Snapshot{Volume: vol(map[string]float64{})},
 			wantConf: model.Low,
-			wantNote: "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음",
+			wantNote: "target outside the cluster: traffic and volume unknown",
 		},
 		{
 			name:     "billable without volume layer keeps confidence and sets note",
 			path:     func() model.Path { return billablePath("ns/svc") },
 			snap:     model.Snapshot{Services: oneSvc},
 			wantConf: model.High,
-			wantNote: "L2 없음: --prometheus-url로 볼륨 추정",
+			wantNote: "no L2: estimate volume with --prometheus-url",
 		},
 		{
 			name: "pod shared by two services is split in half",
@@ -265,14 +265,14 @@ func TestEstimateVolumeAndConfidence(t *testing.T) {
 			path:     func() model.Path { return billablePath("ns/svc") },
 			snap:     model.Snapshot{Services: oneSvc, Volume: vol(map[string]float64{"ns/unrelated": 10})},
 			wantConf: model.Low,
-			wantNote: "엔드포인트 pod 메트릭 없음",
+			wantNote: "no metrics for the endpoint pods",
 		},
 		{
 			name:     "service missing from snapshot is low with nil cost",
 			path:     func() model.Path { return billablePath("ns/gone") },
 			snap:     model.Snapshot{Services: oneSvc, Volume: vol(map[string]float64{"ns/p1": 10})},
 			wantConf: model.Low,
-			wantNote: "엔드포인트 pod 메트릭 없음",
+			wantNote: "no metrics for the endpoint pods",
 		},
 		{
 			name:      "low rule confidence shows bytes but never an amount",
@@ -280,7 +280,7 @@ func TestEstimateVolumeAndConfidence(t *testing.T) {
 			snap:      model.Snapshot{Services: oneSvc, Volume: vol(map[string]float64{"ns/p1": 30})},
 			wantBytes: ptr(30 * ms),
 			wantConf:  model.Low,
-			wantNote:  "판정 신뢰도 low: 금액 생략",
+			wantNote:  "low verdict confidence: amount omitted",
 		},
 		{
 			name: "billable service whose endpoint zones are all unknown is low without amount",
@@ -291,7 +291,7 @@ func TestEstimateVolumeAndConfidence(t *testing.T) {
 			},
 			snap:     model.Snapshot{Services: oneSvc, Volume: vol(map[string]float64{"ns/p1": 30})},
 			wantConf: model.Low,
-			wantNote: "엔드포인트 AZ를 알 수 없어 cross-AZ 비율 계산 불가",
+			wantNote: "endpoint AZs unknown: cannot compute the cross-AZ fraction",
 		},
 		{
 			name: "billable service whose endpoint zones are all unknown is low without volume layer too",
@@ -302,7 +302,7 @@ func TestEstimateVolumeAndConfidence(t *testing.T) {
 			},
 			snap:     model.Snapshot{Services: oneSvc},
 			wantConf: model.Low,
-			wantNote: "엔드포인트 AZ를 알 수 없어 cross-AZ 비율 계산 불가",
+			wantNote: "endpoint AZs unknown: cannot compute the cross-AZ fraction",
 		},
 		{
 			name: "not-ready and pod-less endpoints are ignored, duplicate pod IPs counted once",

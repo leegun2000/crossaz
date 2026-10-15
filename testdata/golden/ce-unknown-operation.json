@@ -40,7 +40,7 @@
     }
   ],
   "warnings": [
-    "모르는 operation \"NatGateway-Out\": family other로 분류(총액 포함)",
-    "모르는 operation \"TransitGateway\": family other로 분류(총액 포함)"
+    "unknown operation \"NatGateway-Out\": classified as family other (included in the total)",
+    "unknown operation \"TransitGateway\": classified as family other (included in the total)"
   ]
 }

@@ -4,6 +4,6 @@
   "lines": [],
   "unknown": true,
   "warnings": [
-    "Cost Explorer 청구 모름(AccessDeniedException): $0 아님 — AccessDeniedException: User: arn:aws:iam::111122223333:user/ci is not authorized to perform: ce:GetCostAndUsage"
+    "Cost Explorer bill unknown (AccessDeniedException), not $0: AccessDeniedException: User: arn:aws:iam::111122223333:user/ci is not authorized to perform: ce:GetCostAndUsage"
   ]
 }

@@ -23,9 +23,9 @@ edge/gateway       nlb (ip)         ?         3/3 even    ?          low    nlb-
 edge/relay         nlb-zonal (ip)   ?         3/3 even    ?          low    unclassified
 partners/webhook   alb (ip)         ?         3/3 even    ?          low    lb-exemption-unverified
 
-Estimated total: ? (L2 없음 — --prometheus-url)
-미확정: $0–? (billable 미확정 경로 1개, 총액 제외)
+Estimated total: ? (no L2 — --prometheus-url)
+Unconfirmed: $0–? (1 path with undecided billing, not in the total)
 Run `crossaz explain cache/redis` for rule details.
 
 WARNINGS
-  - L1: AWS 자격증명을 찾지 못해 L0만 실행
+  - L1: no AWS credentials found; running L0 only

@@ -32,7 +32,7 @@ func billTestReport() model.BillReport {
 			line(0, "APN2-VpcPeering-In-Bytes", "VPCPeering", model.FamilyVPCPeering, 0.4, 40, false),
 			line(0, regional, "Mystery", model.FamilyOther, 0.1, 10, false),
 			line(0, "APN2-DataTransfer-xAZ-In-Bytes", "Unknown", model.FamilyXAZFree, 0, 310.5, false),
-		}, Warnings: []string{`모르는 operation "Mystery": family other로 분류(총액 포함)`}},
+		}, Warnings: []string{`unknown operation "Mystery": classified as family other (included in the total)`}},
 	}
 }
 
@@ -48,7 +48,7 @@ func TestBillTableWaterfall(t *testing.T) {
 	// Assert
 	out := b.String()
 	wantLines := []string{
-		"Region: ap-northeast-2   Accounts: 111122223333,444455556666   Window: 2026-09-08..2026-09-21 (UTC, 14일)   Metric: UnblendedCost",
+		"Region: ap-northeast-2   Accounts: 111122223333,444455556666   Window: 2026-09-08..2026-09-21 (UTC, 14 days)   Metric: UnblendedCost",
 		"WATERFALL",
 		"FAMILY        SIDE   USD     GB       $/GB",
 		"interzone     In     $2.50   250.00   0.0100",
@@ -59,10 +59,10 @@ func TestBillTableWaterfall(t *testing.T) {
 		"other         ?      $0.10   10.00    0.0100",
 		"TOTAL                $5.57   557.00   0.0100",
 		"xaz-free      In     $0.00   310.50   0.0000",
-		"xaz-free는 $0(PrivateLink/TGW/Client VPN)이라 TOTAL에서 제외",
-		"미확정(Estimated) 날: 2026-09-21 — 금액이 바뀔 수 있음(TOTAL 포함)",
+		"xaz-free is $0 (PrivateLink/TGW/Client VPN) and left out of TOTAL",
+		"Not final (Estimated) days: 2026-09-21; amounts may still change (included in TOTAL)",
 		"WARNINGS",
-		`  - 모르는 operation "Mystery": family other로 분류(총액 포함)`,
+		`  - unknown operation "Mystery": classified as family other (included in the total)`,
 	}
 	lines := strings.Split(out, "\n")
 	for _, want := range wantLines {
@@ -76,7 +76,7 @@ func TestBillTableUnknownIsNeverZero(t *testing.T) {
 	// Arrange
 	r := billTestReport()
 	r.Accounts = nil
-	r.Bill = model.Bill{From: billTestFrom, To: billTestFrom.AddDate(0, 0, 1), Unknown: true, Warnings: []string{"Cost Explorer 청구 모름(AccessDeniedException)"}}
+	r.Bill = model.Bill{From: billTestFrom, To: billTestFrom.AddDate(0, 0, 1), Unknown: true, Warnings: []string{"Cost Explorer bill unknown (AccessDeniedException)"}}
 	var b bytes.Buffer
 
 	// Act
@@ -87,10 +87,10 @@ func TestBillTableUnknownIsNeverZero(t *testing.T) {
 	// Assert
 	out := b.String()
 	for _, want := range []string{
-		"Accounts: ? (REGION만 필터)",
-		"Window: 2026-09-08..2026-09-08 (UTC, 1일)",
-		"청구: 모름 — $0이 아님. 이유는 WARNINGS",
-		"  - Cost Explorer 청구 모름(AccessDeniedException)",
+		"Accounts: ? (filtered by REGION only)",
+		"Window: 2026-09-08..2026-09-08 (UTC, 1 day)",
+		"Bill: unknown, not $0. See WARNINGS for why",
+		"  - Cost Explorer bill unknown (AccessDeniedException)",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)

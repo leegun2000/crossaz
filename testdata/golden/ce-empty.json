@@ -4,6 +4,6 @@
   "lines": [],
   "unknown": true,
   "warnings": [
-    "Cost Explorer 청구 모름(빈 결과): $0 아님 — 권한·필터·데이터 지연 확인"
+    "Cost Explorer bill unknown (empty result), not $0: check permissions, filters and data delay"
   ]
 }

@@ -274,8 +274,8 @@ func TestGatherK8sTurnsVersionErrorsIntoWarnings(t *testing.T) {
 		method      string
 		wantWarning string
 	}{
-		{"ServerVersion", "L0: 컨트롤 플레인 버전: boom"},
-		{"KubeProxyVersion", "L0: kube-proxy 버전: boom"},
+		{"ServerVersion", "L0: control plane version: boom"},
+		{"KubeProxyVersion", "L0: kube-proxy version: boom"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.method, func(t *testing.T) {
@@ -446,13 +446,13 @@ func TestWithAWSSkipsWhenVPCsUnavailable(t *testing.T) {
 			name:        "no instance IDs",
 			nodes:       []model.Node{{Name: "kind-node"}},
 			aws:         &fakeAWSCollector{vpcs: []string{"vpc-1"}},
-			wantWarning: "L1: 노드에 EC2 instance ID가 없어 AWS 조회를 건너뜀",
+			wantWarning: "L1: nodes have no EC2 instance ID; skipping AWS lookups",
 		},
 		{
 			name:          "instance lookup fails",
 			nodes:         []model.Node{{Name: "n", InstanceID: "i-1"}},
 			aws:           &fakeAWSCollector{vpcsErr: errSnapTest},
-			wantWarning:   "L1: 노드 인스턴스 VPC: boom",
+			wantWarning:   "L1: node instance VPCs: boom",
 			wantInstCalls: 1,
 		},
 		{
@@ -508,12 +508,12 @@ func TestWithAWSPartialFailuresKeepOtherParts(t *testing.T) {
 	}
 	wantWarnings := []string{
 		"existing",
-		"L1: 서브넷: boom",
-		"L1: 로드밸런서: load balancer gone: not found",
-		"L1: 로드밸런서: classic: boom",
-		"L1: RDS 인스턴스: boom",
-		"L1: MSK 클러스터: boom",
-		"L1: 엔드포인트 IP의 AZ: boom",
+		"L1: subnets: boom",
+		"L1: load balancers: load balancer gone: not found",
+		"L1: load balancers: classic: boom",
+		"L1: RDS instances: boom",
+		"L1: MSK clusters: boom",
+		"L1: endpoint IP AZs: boom",
 	}
 
 	// Act
@@ -539,7 +539,7 @@ func TestWithAWSKeepsEmptyLoadBalancersWhenNothingWasDescribed(t *testing.T) {
 	if got.AWS == nil || got.AWS.LoadBalancers == nil || len(got.AWS.LoadBalancers) != 0 {
 		t.Errorf("AWS = %+v, want an empty non-nil load balancer list", got.AWS)
 	}
-	if !reflect.DeepEqual(got.Warnings, []string{"L1: 로드밸런서: boom"}) {
+	if !reflect.DeepEqual(got.Warnings, []string{"L1: load balancers: boom"}) {
 		t.Errorf("Warnings = %q, want the load balancer warning", got.Warnings)
 	}
 }
@@ -682,7 +682,7 @@ func TestWithVolumeRejectsResultsMatchingNoEndpointPod(t *testing.T) {
 			}
 			wantWarnings := []string{"existing"}
 			if tt.wantWarning {
-				wantWarnings = append(wantWarnings, "L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터, cAdvisor 메트릭 누락, 또는 수집한 지 10분 미만")
+				wantWarnings = append(wantWarnings, "L2: the Prometheus result has no endpoint pod of this cluster (another cluster, missing cAdvisor metrics, or scraping for less than 10 minutes)")
 			}
 			if !reflect.DeepEqual(got.Warnings, wantWarnings) {
 				t.Errorf("Warnings = %q, want %q", got.Warnings, wantWarnings)
@@ -695,7 +695,7 @@ func TestWithBill(t *testing.T) {
 	from := time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)
 	to := from.AddDate(0, 0, 14)
 	line := model.BillLine{Day: from, UsageType: "USW2-DataTransfer-Regional-Bytes", Operation: "InterZone-In", Family: model.FamilyInterZone, USD: 1}
-	known := model.Bill{From: from, To: to, Lines: []model.BillLine{line}, Warnings: []string{"모르는 operation \"X\""}}
+	known := model.Bill{From: from, To: to, Lines: []model.BillLine{line}, Warnings: []string{"unknown operation \"X\""}}
 	stored := model.Bill{From: from, To: to, Lines: []model.BillLine{line}}
 	unknown := model.Bill{From: from, To: to, Unknown: true}
 	tests := []struct {
@@ -709,9 +709,9 @@ func TestWithBill(t *testing.T) {
 		wantCalls    int
 	}{
 		{"success keeps the bill and moves its warnings", "us-west-2", &model.AWSInventory{Accounts: []string{"111122223333"}},
-			&fakeBillCollector{bill: known}, &stored, []string{"L3: 모르는 operation \"X\""}, []string{"111122223333"}, 1},
+			&fakeBillCollector{bill: known}, &stored, []string{"L3: unknown operation \"X\""}, []string{"111122223333"}, 1},
 		{"unknown bill is kept, not dropped", "us-west-2", nil, &fakeBillCollector{bill: unknown}, &unknown, nil, nil, 1},
-		{"failure warns", "us-west-2", nil, &fakeBillCollector{err: errSnapTest}, nil, []string{"L3: 일별 청구: boom"}, nil, 1},
+		{"failure warns", "us-west-2", nil, &fakeBillCollector{err: errSnapTest}, nil, []string{"L3: daily bill: boom"}, nil, 1},
 		{"unknown region skips call", "", nil, &fakeBillCollector{bill: known}, nil, []string{snapWarnNoRegion}, nil, 0},
 	}
 	for _, tt := range tests {
@@ -751,8 +751,8 @@ func TestWithVolumeNoMatchWarningNamesTheSelector(t *testing.T) {
 	got := WithVolume(context.Background(), s, v, "7d", `cluster="prod-a"`)
 
 	// Assert
-	want := []string{"L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터, cAdvisor 메트릭 누락, " +
-		`또는 수집한 지 10분 미만 (--prom-selector "cluster=\"prod-a\"" 적용됨)`}
+	want := []string{"L2: the Prometheus result has no endpoint pod of this cluster (another cluster, missing cAdvisor metrics, " +
+		`or scraping for less than 10 minutes) (--prom-selector "cluster=\"prod-a\"" applied)`}
 	if got.Volume != nil || !reflect.DeepEqual(got.Warnings, want) {
 		t.Errorf("Volume = %+v, Warnings = %q, want nil and %q", got.Volume, got.Warnings, want)
 	}
