@@ -88,6 +88,7 @@ up() {
   wait_endpoints ingress-nginx web 3 3
   wait_endpoints traffic spread-close 6 6
   wait_endpoints notify worker 4 0 # topology-mode Auto withholds hints for 4 endpoints
+  wait_kube_proxy_zonal traffic spread-close
 
   log "running traffic clients"
   k apply -f "$MANIFESTS/traffic.yaml" -l e2e.crossaz.io/role=client
@@ -106,6 +107,35 @@ wait_endpoints() {
     sleep 2
   done
   die "$ns/$svc: ready/hinted endpoints '$got', want '$want'"
+}
+
+# wait_kube_proxy_zonal NS SVC waits until kube-proxy on every zoned node sends SVC only to its zone's ready
+# endpoints. kube-proxy v1.35.8 was seen keeping all endpoints on one node although the EndpointSlice had
+# hints; the test checks crossaz against a healthy kube-proxy, so that node's kube-proxy is restarted once.
+wait_kube_proxy_zonal() {
+  local ns=$1 svc=$2 node zone want got
+  while read -r node zone; do
+    want=$(k -n "$ns" get endpointslices -l "kubernetes.io/service-name=$svc" -o json |
+      jq --arg z "$zone" '[.items[] | (.endpoints // [])[] | select(.conditions.ready and .zone == $z)] | length')
+    kube_proxy_targets "$node" "$ns/$svc" "$want" && continue
+    log "kube-proxy on $node sends $ns/$svc to $got endpoints, want $want (zone $zone): restarting it"
+    k -n kube-system delete pod -l k8s-app=kube-proxy --field-selector "spec.nodeName=$node" --wait
+    kube_proxy_targets "$node" "$ns/$svc" "$want" ||
+      die "kube-proxy on $node still sends $ns/$svc to $got endpoints, want $want (zone $zone)"
+  done < <(k get nodes -l topology.kubernetes.io/zone \
+    -o jsonpath='{range .items[*]}{.metadata.name} {.metadata.labels.topology\.kubernetes\.io/zone}{"\n"}{end}')
+}
+
+# kube_proxy_targets NODE NS/SVC N polls NODE's iptables (kind nodes are containers) until NS/SVC load-balances
+# over exactly N endpoints. Sets the caller's got.
+kube_proxy_targets() {
+  local node=$1 svc=$2 want=$3 i
+  for ((i = 0; i < 15; i++)); do
+    got=$(docker exec "$node" iptables-save | grep -c -- "\"$svc -> .* -j KUBE-SEP-") || got=0
+    [[ "$got" == "$want" ]] && return 0
+    sleep 2
+  done
+  return 1
 }
 
 l2() {

@@ -1,0 +1,15 @@
+Region: us-east-1   Accounts: 111122223333   Window: 2026-08-31..2026-09-13 (UTC, 14 days)   Metric: UnblendedCost
+
+WATERFALL
+FAMILY      SIDE   USD      GB        $/GB
+interzone   In     $14.00   1400.00   0.0100
+interzone   Out    $14.00   1400.00   0.0100
+publicip    Out    $7.00    700.00    0.0100
+other       ?      $0.25    25.00     0.0100
+TOTAL              $35.25   3525.00   0.0100
+xaz-free    In     $0.00    420.00    0.0000
+xaz-free is $0 (PrivateLink/TGW/Client VPN) and left out of TOTAL
+Not final (Estimated) days: 2026-09-13; amounts may still change (included in TOTAL)
+
+WARNINGS
+  - unknown operation "Mystery": classified as family other (included in the total)

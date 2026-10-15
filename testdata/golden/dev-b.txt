@@ -1,2 +1,15 @@
-Cluster: dev-b   AZs: 1   Nodes: 3
-Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습니다.
+Cluster: dev-b   Region: ap-northeast-2   AZs: 1   Nodes: 3   Layers: L0
+Exposure: UNLIKELY
+
+NOT BILLABLE
+SERVICE                ROUTE       RECV/mo   AZ SPREAD   EST $/mo   CONF   NOTE
+kube-system/kube-dns   clusterip   —         1/1         —          high   same-az
+web/api                clusterip   —         1/1         —          high   same-az
+web/frontend           clusterip   —         1/1         —          high   same-az
+
+UNCERTAIN
+SERVICE              ROUTE       RECV/mo   AZ SPREAD   EST $/mo   CONF   NOTE
+default/kubernetes   clusterip   ?         0/1         ?          low    zone-unknown
+
+Estimated total: ? (no L2 — --prometheus-url)
+Unconfirmed: $0–? (1 path with undecided billing, not in the total)

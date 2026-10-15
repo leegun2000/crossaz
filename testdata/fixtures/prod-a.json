@@ -2030,9 +2030,260 @@
       "shop/storefront-3bbd62c89-vkm8n": 97290.39642331297
     }
   },
-  "cost": {
-    "month": "2026-08",
-    "actualUsd": 171.38,
-    "usageType": "APN2-DataTransfer-Regional-Bytes"
+  "bill": {
+    "from": "2026-08-18T00:00:00Z",
+    "to": "2026-09-01T00:00:00Z",
+    "lines": [
+      {
+        "day": "2026-08-18T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-18T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-19T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-19T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-20T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-20T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-21T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-21T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-21T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "PublicIP-Out",
+        "family": "publicip",
+        "usd": 0.4,
+        "gb": 40
+      },
+      {
+        "day": "2026-08-22T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-22T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-23T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-23T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-23T00:00:00Z",
+        "usageType": "APN2-DataTransfer-xAZ-In-Bytes",
+        "operation": "Unknown",
+        "family": "xaz-free",
+        "usd": 0,
+        "gb": 95.5
+      },
+      {
+        "day": "2026-08-24T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-24T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-25T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-25T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-26T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-26T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-27T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-27T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-28T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-28T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-28T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "PublicIP-Out",
+        "family": "publicip",
+        "usd": 0.4,
+        "gb": 40
+      },
+      {
+        "day": "2026-08-29T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-29T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-30T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 2.86,
+        "gb": 286
+      },
+      {
+        "day": "2026-08-30T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 2.85,
+        "gb": 285
+      },
+      {
+        "day": "2026-08-31T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-In",
+        "family": "interzone",
+        "usd": 1.41,
+        "gb": 141,
+        "estimated": true
+      },
+      {
+        "day": "2026-08-31T00:00:00Z",
+        "usageType": "APN2-DataTransfer-Regional-Bytes",
+        "operation": "InterZone-Out",
+        "family": "interzone",
+        "usd": 1.4,
+        "gb": 140,
+        "estimated": true
+      }
+    ]
   }
 }

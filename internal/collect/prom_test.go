@@ -45,7 +45,7 @@ func TestPodRecvBytesPerSecondParsesVectorAndSendsExactQuery(t *testing.T) {
 		`(rate(container_network_receive_bytes_total{pod!=""}[5m]) and container_network_receive_bytes_total{pod!=""} offset 5m))[7d:5m]))`
 
 	// Act
-	got, err := NewPrometheus(srv.URL+"/prom/", srv.Client()).PodRecvBytesPerSecond(t.Context(), "7d")
+	got, err := NewPrometheus(srv.URL+"/prom/", nil, srv.Client()).PodRecvBytesPerSecond(t.Context(), "7d")
 
 	// Assert
 	if err != nil {
@@ -94,7 +94,7 @@ func TestPodRecvBytesPerSecondErrors(t *testing.T) {
 			srv, _, _ := promTestServer(t, tt.status, tt.body)
 
 			// Act
-			_, err := NewPrometheus(srv.URL, nil).PodRecvBytesPerSecond(t.Context(), "5m")
+			_, err := NewPrometheus(srv.URL, nil, nil).PodRecvBytesPerSecond(t.Context(), "5m")
 
 			// Assert
 			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
@@ -114,7 +114,7 @@ func TestPodRecvBytesPerSecondRejectsBadWindowWithoutRequest(t *testing.T) {
 			srv, calls, _ := promTestServer(t, http.StatusOK, promTestSuccessBody)
 
 			// Act
-			_, err := NewPrometheus(srv.URL, srv.Client()).PodRecvBytesPerSecond(t.Context(), window)
+			_, err := NewPrometheus(srv.URL, nil, srv.Client()).PodRecvBytesPerSecond(t.Context(), window)
 
 			// Assert
 			if err == nil || !strings.Contains(err.Error(), "invalid window") {
@@ -149,7 +149,7 @@ func TestPodRecvBytesPerSecondWindowAgainstRateStep(t *testing.T) {
 			srv, calls, _ := promTestServer(t, http.StatusOK, promTestSuccessBody)
 
 			// Act
-			_, err := NewPrometheus(srv.URL, srv.Client()).PodRecvBytesPerSecond(t.Context(), tt.window)
+			_, err := NewPrometheus(srv.URL, nil, srv.Client()).PodRecvBytesPerSecond(t.Context(), tt.window)
 
 			// Assert
 			if tt.wantErr {
@@ -168,7 +168,7 @@ func TestPodRecvBytesPerSecondWindowAgainstRateStep(t *testing.T) {
 func TestPodRecvBytesPerSecondRejectsBadBaseURL(t *testing.T) {
 	for _, base := range []string{"localhost:9090", "ftp://prom", "http://", "http://[::1"} {
 		t.Run(base, func(t *testing.T) {
-			_, err := NewPrometheus(base, nil).PodRecvBytesPerSecond(t.Context(), "7d")
+			_, err := NewPrometheus(base, nil, nil).PodRecvBytesPerSecond(t.Context(), "7d")
 			if err == nil || !strings.Contains(err.Error(), "base URL") {
 				t.Errorf("error = %v, want base URL error", err)
 			}
@@ -200,7 +200,7 @@ func TestPodRecvBytesPerSecondNeverLeaksURLCredentials(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Act
-			_, err := NewPrometheus(tt.base, nil).PodRecvBytesPerSecond(t.Context(), "7d")
+			_, err := NewPrometheus(tt.base, nil, nil).PodRecvBytesPerSecond(t.Context(), "7d")
 
 			// Assert
 			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
@@ -248,10 +248,36 @@ func TestPodRecvBytesPerSecondReportsTransportError(t *testing.T) {
 	srv.Close()
 
 	// Act
-	_, err := NewPrometheus(base, nil).PodRecvBytesPerSecond(t.Context(), "7d")
+	_, err := NewPrometheus(base, nil, nil).PodRecvBytesPerSecond(t.Context(), "7d")
 
 	// Assert
 	if err == nil || !strings.Contains(err.Error(), "prometheus: query") {
 		t.Fatalf("error = %v, want transport error", err)
+	}
+}
+
+func TestPodRecvBytesPerSecondInjectsSelectorIntoEveryVectorSelector(t *testing.T) {
+	// Arrange
+	srv, _, lastURL := promTestServer(t, http.StatusOK, promTestSuccessBody)
+	// The value would end the selector and add a query if it were pasted in verbatim.
+	matchers, err := ParsePromSelector(`{cluster="prod-a",job=~"kubelet|cadvisor",x!="a\"} or vector(1) #\\"}`)
+	if err != nil {
+		t.Fatalf("ParsePromSelector: %v", err)
+	}
+	sel := `{pod!="",cluster="prod-a",job=~"kubelet|cadvisor",x!="a\"} or vector(1) #\\"}`
+	wantQuery := `sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) ` +
+		`(rate(container_network_receive_bytes_total` + sel + `[5m]) and container_network_receive_bytes_total` + sel +
+		` offset 5m))[7d:5m]))`
+
+	// Act
+	_, err = NewPrometheus(srv.URL, matchers, srv.Client()).PodRecvBytesPerSecond(t.Context(), "7d")
+
+	// Assert
+	if err != nil {
+		t.Fatalf("PodRecvBytesPerSecond: %v", err)
+	}
+	u := lastURL.Load().(url.URL)
+	if got := u.Query().Get("query"); got != wantQuery {
+		t.Errorf("query =\n%s\nwant\n%s", got, wantQuery)
 	}
 }

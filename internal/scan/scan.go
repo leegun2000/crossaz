@@ -11,8 +11,6 @@ import (
 	"github.com/leegun2000/crossaz/internal/model"
 )
 
-const noteLocalZone = "Local/Wavelength Zone 포함: 요율이 달라 금액 생략"
-
 // Options tune a scan.
 type Options struct {
 	Threshold float64 // billable paths with a known monthly cost below this (USD) are hidden
@@ -40,23 +38,24 @@ func analysisWarnings(s model.Snapshot, rs model.RuleSet, o Options, zones []str
 		out = append(out, w)
 	}
 	if len(zones) > 0 {
-		out = append(out, fmt.Sprintf("Local/Wavelength Zone 노드 발견(%s): 요율이 달라 해당 경로 금액 생략", strings.Join(zones, ", ")))
+		out = append(out, fmt.Sprintf("Local/Wavelength Zone nodes found (%s): their rate differs, so amounts of paths touching them are omitted", strings.Join(zones, ", ")))
 	}
 	return out
 }
 
-// withoutLocalZoneAmounts blanks the amount of billable paths that touch a Local/Wavelength Zone: its per-GB rate
-// is not the parent region's (billing-rules.md §1.2, §4 local-zone-rate). Paths already low keep their own note.
+// withoutLocalZoneAmounts blanks the amount of billable or unknown paths that touch a Local/Wavelength Zone: its
+// per-GB rate is not the parent region's (billing-rules.md §1.2, §4 local-zone-rate), so an unknown path's upper
+// bound would be too low. Paths already low keep their own note.
 func withoutLocalZoneAmounts(paths []model.Path, zones []string) []model.Path {
 	if len(zones) == 0 {
 		return paths
 	}
 	out := make([]model.Path, len(paths))
 	for i, p := range paths {
-		if p.Billable && p.Confidence != model.Low && (touches(p.Source.AZDist, zones) || touches(p.Dest.AZDist, zones)) {
+		if p.Billable != model.TriFalse && p.Confidence != model.Low && (touches(p.Source.AZDist, zones) || touches(p.Dest.AZDist, zones)) {
 			p.CostPerMo = nil
 			p.Confidence = model.Low
-			p.ConfidenceNote = noteLocalZone
+			p.ConfidenceNote = model.NoteLocalZone
 		}
 		out[i] = p
 	}
@@ -72,9 +71,9 @@ func rateWarning(region string, rs model.RuleSet, override float64) string {
 		return ""
 	}
 	if region == "" {
-		return fmt.Sprintf("리전을 알 수 없어 기본값 $%g/GB 사용 — --region 또는 --rate-gb로 지정", rs.DefaultRateGB)
+		return fmt.Sprintf("region unknown, using the default $%g/GB; set --region or --rate-gb", rs.DefaultRateGB)
 	}
-	return fmt.Sprintf("리전 %s 요율이 내장되어 있지 않아 기본값 $%g/GB 사용 — --rate-gb로 지정", region, rs.DefaultRateGB)
+	return fmt.Sprintf("no built-in rate for region %s, using the default $%g/GB; set --rate-gb", region, rs.DefaultRateGB)
 }
 
 // localZones returns the sorted distinct node zones that are not a regular AZ "<region><letter>".

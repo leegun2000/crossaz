@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -51,13 +52,19 @@ func (fakeKube) ServerVersion(context.Context) (string, error)                { 
 func (fakeKube) KubeProxyVersion(context.Context) (string, error)             { return "v1.33.1-eksbuild.1", nil }
 
 // fakeInventory with noVPCs behaves like credentials for another account: the node filter matches nothing.
-type fakeInventory struct{ noVPCs bool }
+type fakeInventory struct {
+	noVPCs bool
+	err    error
+}
 
-func (f fakeInventory) InstanceVPCs(context.Context, []string) ([]string, error) {
-	if f.noVPCs {
-		return nil, nil
+func (f fakeInventory) InstanceVPCs(context.Context, []string) ([]string, []string, error) {
+	if f.err != nil {
+		return nil, nil, f.err
 	}
-	return []string{"vpc-1"}, nil
+	if f.noVPCs {
+		return nil, nil, nil
+	}
+	return []string{"vpc-1"}, []string{"111122223333"}, nil
 }
 func (fakeInventory) IPZones(context.Context, []string, []string) (map[string]string, error) {
 	return nil, nil
@@ -78,16 +85,35 @@ func (fakeInventory) RDSInstances(context.Context) ([]model.RDSInstance, error) 
 	return []model.RDSInstance{{ID: "orders-db", AZ: "us-east-1a", VPCID: "vpc-1"}}, nil
 }
 
-type costCall struct {
-	region string
-	month  time.Time
+// fakeBill serves testBill (or err) over whatever window it is asked for, and records "region [accounts] from..to".
+type fakeBill struct {
+	calls *[]string
+	err   error
 }
 
-type fakeCost struct{ calls *[]costCall }
+func (f fakeBill) DailyBill(_ context.Context, region string, accounts []string, from, to time.Time) (model.Bill, error) {
+	*f.calls = append(*f.calls, fmt.Sprintf("%s %v %s..%s", region, accounts, from.Format(time.DateOnly), to.Format(time.DateOnly)))
+	if f.err != nil {
+		return model.Bill{}, f.err
+	}
+	return testBill(from, to), nil
+}
 
-func (f fakeCost) InterAZDataTransferUSD(_ context.Context, region string, month time.Time) (model.CostData, error) {
-	*f.calls = append(*f.calls, costCall{region, month})
-	return model.CostData{Month: month.Format("2006-01"), ActualUSD: 1, UsageType: "DataTransfer-Regional-Bytes"}, nil
+// testBill has $2/day of InterZone (the last day not final), PublicIP and $0 xAZ lines, and an unknown operation.
+func testBill(from, to time.Time) model.Bill {
+	const regional = "DataTransfer-Regional-Bytes"
+	b := model.Bill{From: from, To: to, Warnings: []string{`unknown operation "Mystery": classified as family other (included in the total)`}}
+	for day := from; day.Before(to); day = day.AddDate(0, 0, 1) {
+		estimated := day.Equal(to.AddDate(0, 0, -1))
+		b.Lines = append(b.Lines,
+			model.BillLine{Day: day, UsageType: regional, Operation: "InterZone-In", Family: model.FamilyInterZone, USD: 1, GB: 100, Estimated: estimated},
+			model.BillLine{Day: day, UsageType: regional, Operation: "InterZone-Out", Family: model.FamilyInterZone, USD: 1, GB: 100, Estimated: estimated},
+			model.BillLine{Day: day, UsageType: regional, Operation: "PublicIP-Out", Family: model.FamilyPublicIP, USD: 0.5, GB: 50, Estimated: estimated},
+			model.BillLine{Day: day, UsageType: "USE1-DataTransfer-xAZ-In-Bytes", Operation: "Unknown", Family: model.FamilyXAZFree, GB: 30, Estimated: estimated},
+		)
+	}
+	b.Lines = append(b.Lines, model.BillLine{Day: from, UsageType: regional, Operation: "Mystery", Family: model.FamilyOther, USD: 0.25, GB: 25})
+	return b
 }
 
 // liveFake records what the live flow asked for.
@@ -96,9 +122,11 @@ type liveFake struct {
 	nodesErr   error
 	awsErr     error
 	noVPCs     bool
+	vpcErr     error
 	awsRegion  string
 	awsRegions []string
-	costCalls  []costCall
+	billErr    error
+	billCalls  []string
 }
 
 func (f *liveFake) sources() sources {
@@ -111,7 +139,7 @@ func (f *liveFake) sources() sources {
 			if f.awsErr != nil {
 				return awsSession{}, f.awsErr
 			}
-			return awsSession{region: f.awsRegion, inventory: fakeInventory{noVPCs: f.noVPCs}, cost: fakeCost{calls: &f.costCalls}}, nil
+			return awsSession{region: f.awsRegion, inventory: fakeInventory{noVPCs: f.noVPCs, err: f.vpcErr}, bill: fakeBill{calls: &f.billCalls, err: f.billErr}}, nil
 		},
 		now: func() time.Time { return time.Date(2026, 9, 14, 3, 0, 0, 0, time.UTC) },
 	}
@@ -138,7 +166,7 @@ func TestRunLiveCollection(t *testing.T) {
 		wantCluster   string
 		wantRegion    string
 		wantAWSRegion []string // regions passed to the AWS loader; nil = never called
-		wantCost      []costCall
+		wantBill      []string
 		wantWarnings  []string // prefixes that must each match a warning
 	}{
 		{
@@ -149,7 +177,7 @@ func TestRunLiveCollection(t *testing.T) {
 			wantCluster:   "ctx-cluster",
 			wantRegion:    "us-east-1",
 			wantAWSRegion: []string{"us-east-1"},
-			wantCost:      []costCall{{"us-east-1", time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)}},
+			wantBill:      []string{"us-east-1 [111122223333] 2026-08-31..2026-09-14"},
 		},
 		{
 			name:          "flags override cluster and region",
@@ -159,7 +187,7 @@ func TestRunLiveCollection(t *testing.T) {
 			wantCluster:   "prod-x",
 			wantRegion:    "eu-west-1",
 			wantAWSRegion: []string{"eu-west-1"},
-			wantCost:      []costCall{{"eu-west-1", time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)}},
+			wantBill:      []string{"eu-west-1 [111122223333] 2026-08-31..2026-09-14"},
 		},
 		{
 			name:          "missing credentials fall back to L0 and skip verify",
@@ -212,8 +240,8 @@ func TestRunLiveCollection(t *testing.T) {
 			if !slices.Equal(fake.awsRegions, tt.wantAWSRegion) {
 				t.Errorf("AWS loader regions = %q, want %q", fake.awsRegions, tt.wantAWSRegion)
 			}
-			if !slices.Equal(fake.costCalls, tt.wantCost) {
-				t.Errorf("cost calls = %v, want %v", fake.costCalls, tt.wantCost)
+			if !slices.Equal(fake.billCalls, tt.wantBill) {
+				t.Errorf("bill calls = %q, want %q", fake.billCalls, tt.wantBill)
 			}
 			for _, want := range tt.wantWarnings {
 				if !slices.ContainsFunc(r.Warnings, func(w string) bool { return strings.HasPrefix(w, want) }) {
@@ -266,6 +294,10 @@ func TestRunLiveCommandsAndFailures(t *testing.T) {
 		{"listing failure is fatal", liveFake{nodesErr: errors.New("forbidden")}, []string{"scan", "--no-aws"}, exitError, "", "gather kubernetes objects: forbidden"},
 		{"dump-fixture reports collection failure", liveFake{kubeErr: errors.New("boom")}, []string{"scan", "--dump-fixture"}, exitError, "", "boom"},
 		{"explain reports collection failure", liveFake{kubeErr: errors.New("boom")}, []string{"explain", "a/b"}, exitError, "", "boom"},
+		{"bill reports collection failure", liveFake{kubeErr: errors.New("boom")}, []string{"bill"}, exitError, "", "boom"},
+		{"bill needs AWS credentials", liveFake{awsErr: errors.New("expired token")}, []string{"bill"}, exitError, "", "bill needs AWS credentials: " + warnNoAWSCredentials + ": expired token"},
+		{"bill fails on a Cost Explorer error", liveFake{billErr: errors.New("ce:GetCostAndUsage: throttled")}, []string{"bill"}, exitError, "", "crossaz: ce:GetCostAndUsage: throttled"},
+		{"verify turns a Cost Explorer error into a warning", liveFake{billErr: errors.New("throttled")}, []string{"scan", "--verify"}, exitOK, "L3: daily bill: throttled", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -286,21 +318,27 @@ func TestRunLiveCommandsAndFailures(t *testing.T) {
 	}
 }
 
-func TestPreviousMonth(t *testing.T) {
+func TestClosedDays(t *testing.T) {
 	seoul := time.FixedZone("KST", 9*3600)
 	tests := []struct {
-		name string
-		now  time.Time
-		want time.Time
+		name     string
+		now      time.Time
+		days     int
+		wantFrom string
+		wantTo   string
 	}{
-		{"mid month", time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC), time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)},
-		{"january wraps to december", time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC), time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)},
-		{"local time already in the next month uses UTC", time.Date(2026, 10, 1, 5, 0, 0, 0, seoul), time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)},
+		{"mid day ends at today's UTC midnight", time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC), 14, "2026-08-31", "2026-09-14"},
+		{"exactly midnight excludes the new day", time.Date(2026, 9, 14, 0, 0, 0, 0, time.UTC), 1, "2026-09-13", "2026-09-14"},
+		{"local time already tomorrow uses the UTC day", time.Date(2026, 3, 1, 5, 0, 0, 0, seoul), 90, "2025-11-30", "2026-02-28"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := previousMonth(tt.now); !got.Equal(tt.want) {
-				t.Errorf("previousMonth(%v) = %v, want %v", tt.now, got, tt.want)
+			// Act
+			from, to := closedDays(tt.now, tt.days)
+
+			// Assert
+			if from.Format(time.DateOnly) != tt.wantFrom || to.Format(time.DateOnly) != tt.wantTo || to.Location() != time.UTC || to.Hour() != 0 {
+				t.Errorf("closedDays = %v..%v, want %s..%s UTC midnight", from, to, tt.wantFrom, tt.wantTo)
 			}
 		})
 	}
@@ -401,7 +439,7 @@ func TestLiveAWSChecksCredentials(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || sess.region != tt.wantRegion || sess.inventory == nil || sess.cost == nil {
+			if err != nil || sess.region != tt.wantRegion || sess.inventory == nil || sess.bill == nil {
 				t.Errorf("liveAWS = %+v, %v; want region %q", sess, err, tt.wantRegion)
 			}
 		})
@@ -422,4 +460,157 @@ func isolateAWSEnv(t *testing.T) {
 	t.Setenv("AWS_CONFIG_FILE", filepath.Join(dir, "config"))
 	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(dir, "credentials"))
 	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
+}
+
+// promCountingServer answers every query with one payments pod and records the queries it saw.
+func promCountingServer(t *testing.T) (string, *[]string) {
+	t.Helper()
+	var mu sync.Mutex
+	var queries []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		queries = append(queries, r.URL.Query().Get("query"))
+		mu.Unlock()
+		fmt.Fprint(w, `{"status":"success","data":{"resultType":"vector","result":[`+
+			`{"metric":{"namespace":"payments","pod":"api-a"},"value":[1,"1000000"]}]}}`)
+	}))
+	t.Cleanup(srv.Close)
+	return srv.URL, &queries
+}
+
+func TestRunPromSelector(t *testing.T) {
+	tests := []struct {
+		name        string
+		selector    string
+		wantCode    int
+		wantQueries int
+		wantInQuery string
+	}{
+		{"invalid selector exits 2 before any request", `cluster="prod-a"}`, exitUsage, 0, ""},
+		{"unterminated string exits 2 before any request", `cluster="prod-a`, exitUsage, 0, ""},
+		{"valid selector reaches every vector selector", `{cluster="prod-a"}`, exitOK, 1, `{pod!="",cluster="prod-a"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			prom, queries := promCountingServer(t)
+			src := noSources(t)
+			if tt.wantCode == exitOK {
+				src = (&liveFake{}).sources()
+			}
+
+			// Act
+			code, _, stderr := runTest(t, src, "scan", "--json", "--no-aws", "--prometheus-url", prom, "--prom-selector", tt.selector)
+
+			// Assert
+			if code != tt.wantCode {
+				t.Fatalf("exit = %d, want %d, stderr = %q", code, tt.wantCode, stderr)
+			}
+			if len(*queries) != tt.wantQueries {
+				t.Fatalf("requests = %d, want %d", len(*queries), tt.wantQueries)
+			}
+			if tt.wantInQuery != "" && strings.Count((*queries)[0], tt.wantInQuery) != 2 {
+				t.Errorf("query %q, want %q in both vector selectors", (*queries)[0], tt.wantInQuery)
+			}
+		})
+	}
+}
+
+func TestRunScanVerifyUsesDailyInterZoneLines(t *testing.T) {
+	// Arrange
+	fake := &liveFake{}
+
+	// Act
+	code, stdout, stderr := runTest(t, fake.sources(), "scan", "--json", "--verify", "--prometheus-url", promServer(t))
+
+	// Assert
+	var r model.ScanResult
+	if err := json.Unmarshal([]byte(stdout), &r); err != nil || code != exitOK || r.Verify == nil {
+		t.Fatalf("exit = %d, err = %v, stderr = %q, verify = %v", code, err, stderr, r.Verify)
+	}
+	v := r.Verify
+	// 14 days of $2 InterZone, the not-final one counted (PublicIP, xAZ and other left out) = $60 per 30 days.
+	if v.Window != "2026-08-31..2026-09-13" || v.Days != 14 || v.EstimatedDays != 1 || v.ActualUSD == nil || *v.ActualUSD != 60 || v.UsageType != "DataTransfer-Regional-Bytes" {
+		t.Errorf("Verify = %+v (actual %v)", *v, v.ActualUSD)
+	}
+}
+
+func TestRunBillMatchesGoldenFiles(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		golden string
+	}{
+		{"table", []string{"bill"}, "bill.txt"},
+		{"json", []string{"bill", "--json", "--days", "3"}, "bill.json"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			fake := &liveFake{}
+
+			// Act
+			code, stdout, stderr := runTest(t, fake.sources(), tt.args...)
+
+			// Assert
+			if code != exitOK || stderr != "" {
+				t.Fatalf("exit = %d, stderr = %q", code, stderr)
+			}
+			assertGolden(t, tt.golden, stdout)
+		})
+	}
+}
+
+func TestRunBillRefusesWhenL1FindsNoNodeVPC(t *testing.T) {
+	// Arrange
+	fake := &liveFake{noVPCs: true}
+
+	// Act
+	code, _, stderr := runTest(t, fake.sources(), "bill")
+
+	// Assert
+	if code != exitError || !strings.Contains(stderr, "bill: L1 found none of the cluster's nodes") {
+		t.Errorf("exit = %d, stderr = %q, want exit %d and the no-VPC error", code, stderr, exitError)
+	}
+	if len(fake.billCalls) != 0 {
+		t.Errorf("bill calls = %q, want none: the credentials may belong to another account", fake.billCalls)
+	}
+}
+
+func TestRunBillQuery(t *testing.T) {
+	tests := []struct {
+		name         string
+		fake         liveFake
+		args         []string
+		wantCall     string
+		wantWarnings []string
+	}{
+		{"accounts from L1 and the default 14 closed days", liveFake{}, []string{"bill"}, "us-east-1 [111122223333] 2026-08-31..2026-09-14", nil},
+		{"--days and --region", liveFake{}, []string{"bill", "--days", "90", "--region", "eu-west-1"}, "eu-west-1 [111122223333] 2026-06-16..2026-09-14", nil},
+		{"without L1 accounts the query is region only", liveFake{vpcErr: errors.New("throttled")}, []string{"bill"}, "us-east-1 [] 2026-08-31..2026-09-14",
+			[]string{"L1: node instance VPCs: throttled"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			fake := tt.fake
+
+			// Act
+			code, stdout, stderr := runTest(t, fake.sources(), append(tt.args, "--json")...)
+
+			// Assert
+			var r model.BillReport
+			if err := json.Unmarshal([]byte(stdout), &r); err != nil || code != exitOK {
+				t.Fatalf("exit = %d, err = %v, stderr = %q", code, err, stderr)
+			}
+			if !slices.Equal(fake.billCalls, []string{tt.wantCall}) {
+				t.Errorf("bill calls = %q, want [%q]", fake.billCalls, tt.wantCall)
+			}
+			for _, want := range tt.wantWarnings {
+				if !slices.Contains(r.Warnings, want) {
+					t.Errorf("warnings = %q, want %q", r.Warnings, want)
+				}
+			}
+		})
+	}
 }

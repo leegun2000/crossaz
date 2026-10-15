@@ -10,18 +10,19 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	// promQueryFormat (%[1]s window, %[2]s step) averages a step-long rate over the window in steps. A step counts
+	// promQueryFormat (%[1]s window, %[2]s step, %[3]s extra --prom-selector matchers) averages a step-long rate over the window in steps. A step counts
 	// only when the series already had a sample one step earlier, so its rate range is fully covered, and
 	// avg_over_time divides by the steps that exist: a pod younger than the window, or Prometheus retention shorter
 	// than it, is not diluted by the whole window (plain rate(x[7d]) divides by 7d).
 	promQueryFormat = `sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) ` +
-		`(rate(container_network_receive_bytes_total{pod!=""}[%[2]s]) and container_network_receive_bytes_total{pod!=""} offset %[2]s))[%[1]s:%[2]s]))`
+		`(rate(container_network_receive_bytes_total{pod!=""%[3]s}[%[2]s]) and container_network_receive_bytes_total{pod!=""%[3]s} offset %[2]s))[%[1]s:%[2]s]))`
 	// promStep is the rate range and subquery step; kept as PromQL text and as a duration for window checks.
 	promStep          = "5m"
 	promStepDuration  = 5 * time.Minute
@@ -43,8 +44,9 @@ var promUnits = map[string]time.Duration{
 }
 
 type promCollector struct {
-	baseURL string
-	hc      *http.Client
+	baseURL  string
+	matchers []PromMatcher
+	hc       *http.Client
 }
 
 type promResponse struct {
@@ -62,19 +64,20 @@ type promSample struct {
 	Value  [2]any            `json:"value"` // [unix time, "value"]
 }
 
-// NewPrometheus returns a VolumeCollector querying the Prometheus HTTP API at baseURL. nil hc uses http.DefaultClient.
-func NewPrometheus(baseURL string, hc *http.Client) VolumeCollector {
+// NewPrometheus returns a VolumeCollector querying the Prometheus HTTP API at baseURL, adding matchers to every
+// vector selector. nil hc uses http.DefaultClient.
+func NewPrometheus(baseURL string, matchers []PromMatcher, hc *http.Client) VolumeCollector {
 	if hc == nil {
 		hc = http.DefaultClient
 	}
-	return promCollector{baseURL: baseURL, hc: hc}
+	return promCollector{baseURL: baseURL, matchers: slices.Clone(matchers), hc: hc}
 }
 
 func (p promCollector) PodRecvBytesPerSecond(ctx context.Context, window string) (map[string]float64, error) {
 	if err := promCheckWindow(window); err != nil {
 		return nil, err
 	}
-	endpoint, err := p.queryURL(fmt.Sprintf(promQueryFormat, window, promStep))
+	endpoint, err := p.queryURL(fmt.Sprintf(promQueryFormat, window, promStep, promRenderMatchers(p.matchers)))
 	if err != nil {
 		return nil, err
 	}

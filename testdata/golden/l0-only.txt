@@ -20,11 +20,12 @@ UNCERTAIN
 SERVICE            ROUTE            RECV/mo   AZ SPREAD   EST $/mo   CONF   NOTE
 admin/console      clusterip        —         3/3 even    —          low    ingress-direct-backend
 edge/gateway       nlb (ip)         ?         3/3 even    ?          low    nlb-cross-zone-unknown
-edge/relay         nlb-zonal (ip)   —         3/3 even    —          low    unclassified
+edge/relay         nlb-zonal (ip)   ?         3/3 even    ?          low    unclassified
 partners/webhook   alb (ip)         ?         3/3 even    ?          low    lb-exemption-unverified
 
-Estimated total: ? (L2 없음 — --prometheus-url)
+Estimated total: ? (no L2 — --prometheus-url)
+Unconfirmed: $0–? (1 path with undecided billing, not in the total)
 Run `crossaz explain cache/redis` for rule details.
 
 WARNINGS
-  - L1: AWS 자격증명을 찾지 못해 L0만 실행
+  - L1: no AWS credentials found; running L0 only

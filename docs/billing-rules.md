@@ -428,6 +428,8 @@ headless Service DNS(`headless-cross-az`), ALB/NLB ip 타겟(LB → pod IP), pod
 | `Global-DataTransfer-Regional-Bytes` | 전 리전 월 1GB 무료 티어 | $0 | Price List |
 
 - 공인 IPv4 라인을 operation `PublicIP-In`/`PublicIP-Out`으로 구분한다는 설명은 re:Post 답변에만 있다(공식 문서 아님, 미확인).
+- ELB 관련 Regional-Bytes 라인의 operation 이름(`LB-PublicIP-In/Out` 또는 `LoadBalancing-PublicIP-In/Out`)은 출처가 없어 미확인이다. crossaz는 둘 다 lb-publicip로 분류하며, 실계정 [R] 실행으로 확인할 때까지 유지한다.
+- `<prefix>-NatGateway-Bytes`(NAT 게이트웨이 처리 요금)는 AZ 간 전송이 아니지만 crossaz bill은 family `natgw-bytes`로 따로 보여 준다(verify 합에는 넣지 않음). 이름은 실계정에서 확인하지 않았다.
 - RDS·ElastiCache 클라이언트(EC2) 측 청구가 어느 usage type·서비스로 잡히는지는 이번 조사에서 확인하지 않았다.
 
 **접두어** — `DataTransfer-Regional-Bytes` 기준, AWSDataTransfer Price List 2026-09-11에서 추출

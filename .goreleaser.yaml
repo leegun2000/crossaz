@@ -28,6 +28,7 @@ archives:
         formats: [zip]
     files:
       - README.md
+      - README.ko.md
       - LICENSE*
 
 checksum:

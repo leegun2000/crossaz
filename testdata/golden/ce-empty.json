@@ -1,0 +1,9 @@
+{
+  "from": "2026-09-08T00:00:00Z",
+  "to": "2026-09-22T00:00:00Z",
+  "lines": [],
+  "unknown": true,
+  "warnings": [
+    "Cost Explorer bill unknown (empty result), not $0: check permissions, filters and data delay"
+  ]
+}

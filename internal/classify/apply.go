@@ -50,8 +50,9 @@ func applyRule(p model.Path, r model.Rule, rate float64, td string) (model.Path,
 	out.SourceURL = r.Source
 	out.RuleConfidence = r.Confidence
 	out.Confidence = model.MinLevel(r.Confidence, evidenceLevel(p.Facts.Evidence))
+	// An unknown verdict keeps the rate it would have if billable: the summary's "Unconfirmed" upper bound uses it.
 	out.RateGB = 0
-	if r.Billable {
+	if r.Billable != model.TriFalse {
 		out.RateGB = rate
 	}
 	out.Fix = nil

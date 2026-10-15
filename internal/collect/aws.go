@@ -56,24 +56,26 @@ func NewAWSFromConfig(cfg aws.Config) AWSCollector {
 	})
 }
 
-func (a awsCollector) InstanceVPCs(ctx context.Context, instanceIDs []string) ([]string, error) {
-	vpcs := map[string]bool{}
+func (a awsCollector) InstanceVPCs(ctx context.Context, instanceIDs []string) ([]string, []string, error) {
+	vpcs, owners := map[string]bool{}, map[string]bool{}
 	for chunk := range slices.Chunk(instanceIDs, awsFilterChunk) {
 		in := &ec2.DescribeInstancesInput{Filters: awsFilter("instance-id", chunk)}
 		err := awsEachPage(ctx, "ec2:DescribeInstances", ec2.NewDescribeInstancesPaginator(a.c.EC2, in),
 			func(page *ec2.DescribeInstancesOutput) {
 				for _, r := range page.Reservations {
+					owners[aws.ToString(r.OwnerId)] = true
 					for _, inst := range r.Instances {
 						vpcs[aws.ToString(inst.VpcId)] = true
 					}
 				}
 			})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	delete(vpcs, "")
-	return slices.Sorted(maps.Keys(vpcs)), nil
+	delete(owners, "")
+	return slices.Sorted(maps.Keys(vpcs)), slices.Sorted(maps.Keys(owners)), nil
 }
 
 func (a awsCollector) Subnets(ctx context.Context, vpcIDs []string) (map[string]model.Subnet, error) {

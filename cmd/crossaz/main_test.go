@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,8 @@ import (
 	"github.com/leegun2000/crossaz/internal/model"
 	"github.com/leegun2000/crossaz/rules"
 )
+
+var update = flag.Bool("update", false, "rewrite the bill goldens in testdata/golden from the current output")
 
 var (
 	prodFixture = filepath.Join("..", "..", "testdata", "fixtures", "prod-a.json")
@@ -52,6 +55,19 @@ func readGolden(t *testing.T, name string) string {
 	return string(data)
 }
 
+// assertGolden compares got with testdata/golden/name, rewriting it first under -update.
+func assertGolden(t *testing.T, name, got string) {
+	t.Helper()
+	if *update {
+		if err := os.WriteFile(filepath.Join(goldenDir, name), []byte(got), 0o644); err != nil {
+			t.Fatalf("update golden: %v", err)
+		}
+	}
+	if want := readGolden(t, name); got != want {
+		t.Errorf("output differs from %s (run go test ./cmd/crossaz -run Bill -update after checking):\n%s", name, got)
+	}
+}
+
 func TestRunCommands(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -73,11 +89,13 @@ func TestRunCommands(t *testing.T) {
 		{"scan rejects a negative rate", []string{"scan", "--rate-gb", "-0.1"}, exitUsage, "", "--rate-gb must be >= 0"},
 		{"scan rejects a zero timeout", []string{"scan", "--timeout", "0s"}, exitUsage, "", "--timeout must be > 0"},
 		{"scan rejects --verify with --no-aws", []string{"scan", "--verify", "--no-aws"}, exitUsage, "", "--verify needs AWS"},
+		{"scan rejects an invalid --prom-selector", []string{"scan", "--prom-selector", `a="1" b="2"`}, exitUsage, "", `--prom-selector: offset 6: want ',' or end of selector`},
+		{"explain rejects an invalid --prom-selector", []string{"explain", "a/b", "--prom-selector", `a=~"("`}, exitUsage, "", `--prom-selector: offset 3: invalid regex`},
 		{"scan rejects positional arguments", []string{"scan", "payments/api"}, exitUsage, "", "want 0 argument(s)"},
 		{"scan reports a missing fixture", []string{"scan", "--fixture", "nope.json"}, exitError, "", "open fixture"},
 		{"scan reports a bad rules file before collecting", []string{"scan", "--fixture", prodFixture, "--rules", "nope.yaml"}, exitError, "", "read rules"},
 		{"scan applies --cluster and --region to a fixture", []string{"scan", "--fixture", prodFixture, "--cluster", "renamed", "--region", "eu-west-1"}, exitOK, "Cluster: renamed   Region: eu-west-1", ""},
-		{"scan warns about a region without a built-in rate", []string{"scan", "--fixture", prodFixture, "--region", "cn-north-1"}, exitOK, "리전 cn-north-1 요율이 내장되어 있지 않아", ""},
+		{"scan warns about a region without a built-in rate", []string{"scan", "--fixture", prodFixture, "--region", "cn-north-1"}, exitOK, "no built-in rate for region cn-north-1", ""},
 		{"scan --threshold 0 hides nothing", []string{"scan", "--fixture", prodFixture, "--threshold", "0"}, exitOK, "kube-system/kube-dns", ""},
 		{"explain accepts flags after the key", []string{"explain", "payments/api", "--fixture", prodFixture}, exitOK, "rule:        clusterip-cross-az", ""},
 		{"explain accepts flags before the key", []string{"explain", "--fixture", prodFixture, "rds/orders-db"}, exitOK, "rds-multiaz-replication", ""},
@@ -87,11 +105,18 @@ func TestRunCommands(t *testing.T) {
 		{"explain rejects two keys", []string{"explain", "a/b", "c/d", "--fixture", prodFixture}, exitUsage, "", "want 1 argument(s), got 2"},
 		{"explain has no --json flag", []string{"explain", "a/b", "--json"}, exitUsage, "", "flag provided but not defined: -json"},
 		{"explain reports a bad rules file", []string{"explain", "a/b", "--rules", "nope.yaml"}, exitError, "", "read rules"},
-		{"explain prints analysis warnings to stderr", []string{"explain", "payments/api", "--fixture", prodFixture, "--region", "cn-north-1"}, exitOK, "", "crossaz: warning: 리전 cn-north-1 요율이 내장되어 있지 않아"},
-		{"explain prints warnings even when no path matches", []string{"explain", "nope/missing", "--fixture", prodFixture, "--region", "cn-north-1"}, exitError, "", "crossaz: warning: 리전 cn-north-1 요율이 내장되어 있지 않아"},
+		{"explain prints analysis warnings to stderr", []string{"explain", "payments/api", "--fixture", prodFixture, "--region", "cn-north-1"}, exitOK, "", "crossaz: warning: no built-in rate for region cn-north-1"},
+		{"explain prints warnings even when no path matches", []string{"explain", "nope/missing", "--fixture", prodFixture, "--region", "cn-north-1"}, exitError, "", "crossaz: warning: no built-in rate for region cn-north-1"},
 		{"explain has no --verify flag", []string{"explain", "a/b", "--verify"}, exitUsage, "", "flag provided but not defined: -verify"},
 		{"scan warns that --fixture ignores --prometheus-url", []string{"scan", "--fixture", prodFixture, "--prometheus-url", "http://127.0.0.1:1"}, exitOK, warnFixtureIgnoresCollection, ""},
 		{"scan warns that --fixture ignores --verify", []string{"scan", "--fixture", prodFixture, "--verify"}, exitOK, warnFixtureIgnoresCollection, ""},
+		{"help lists the bill command", []string{"help"}, exitOK, "crossaz bill    [--days N] [flags]", ""},
+		{"bill -h shows its flags", []string{"bill", "-h"}, exitOK, "", "-days"},
+		{"bill rejects --days 0", []string{"bill", "--days", "0"}, exitUsage, "", "--days must be 1..90"},
+		{"bill rejects --days 91", []string{"bill", "--days", "91"}, exitUsage, "", "--days must be 1..90"},
+		{"bill rejects a non-numeric --days", []string{"bill", "--days", "two"}, exitUsage, "", `invalid value "two" for flag -days`},
+		{"bill rejects positional arguments", []string{"bill", "extra"}, exitUsage, "", "want 0 argument(s)"},
+		{"bill has no --fixture flag", []string{"bill", "--fixture", prodFixture}, exitUsage, "", "flag provided but not defined: -fixture"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -203,6 +228,36 @@ func TestRunScanRejectsMalformedFixture(t *testing.T) {
 	// Assert
 	if code != exitError || !strings.Contains(stderr, `unknown field "nodez"`) {
 		t.Errorf("exit = %d, stderr = %q", code, stderr)
+	}
+}
+
+func TestRunScanReadsV1FixtureWithMonthlyCost(t *testing.T) {
+	// Arrange: the v1 fixture shape, a monthly "cost" instead of the daily "bill"
+	data, err := os.ReadFile(prodFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	delete(fixture, "bill")
+	fixture["cost"] = json.RawMessage(`{"month":"2026-08","actualUsd":171.38,"usageType":"APN2-DataTransfer-Regional-Bytes"}`)
+	v1, err := json.Marshal(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "v1.json")
+	if err := os.WriteFile(path, v1, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Act
+	code, stdout, stderr := runTest(t, noSources(t), "scan", "--fixture", path)
+
+	// Assert
+	if code != exitOK || !strings.Contains(stdout, "the monthly cost of a v1 fixture is ignored; collect again with --verify") {
+		t.Errorf("exit = %d, stderr = %q, stdout without the v1 cost warning:\n%s", code, stderr, stdout)
 	}
 }
 

@@ -72,6 +72,7 @@ func (f snapTestK8sCollector) KubeProxyVersion(context.Context) (string, error) 
 
 type fakeAWSCollector struct {
 	vpcs       []string
+	accounts   []string
 	vpcsErr    error
 	subnets    map[string]model.Subnet
 	subnetsErr error
@@ -96,10 +97,10 @@ type fakeAWSCollector struct {
 	ipZonesCalls   int
 }
 
-func (f *fakeAWSCollector) InstanceVPCs(_ context.Context, ids []string) ([]string, error) {
+func (f *fakeAWSCollector) InstanceVPCs(_ context.Context, ids []string) ([]string, []string, error) {
 	f.instanceCalls++
 	f.gotInstanceIDs = ids
-	return f.vpcs, f.vpcsErr
+	return f.vpcs, f.accounts, f.vpcsErr
 }
 
 func (f *fakeAWSCollector) Subnets(_ context.Context, vpcs []string) (map[string]model.Subnet, error) {
@@ -143,18 +144,20 @@ func (f *fakeVolumeCollector) PodRecvBytesPerSecond(_ context.Context, window st
 	return f.recv, f.err
 }
 
-type fakeCostCollector struct {
-	cost      model.CostData
-	err       error
-	calls     int
-	gotRegion string
-	gotMonth  time.Time
+type fakeBillCollector struct {
+	bill        model.Bill
+	err         error
+	calls       int
+	gotRegion   string
+	gotAccounts []string
+	gotFrom     time.Time
+	gotTo       time.Time
 }
 
-func (f *fakeCostCollector) InterAZDataTransferUSD(_ context.Context, region string, month time.Time) (model.CostData, error) {
+func (f *fakeBillCollector) DailyBill(_ context.Context, region string, accounts []string, from, to time.Time) (model.Bill, error) {
 	f.calls++
-	f.gotRegion, f.gotMonth = region, month
-	return f.cost, f.err
+	f.gotRegion, f.gotAccounts, f.gotFrom, f.gotTo = region, accounts, from, to
+	return f.bill, f.err
 }
 
 // snapTestSnapshot builds a fresh L0 snapshot; call it twice to get an untouched copy for comparison.
@@ -271,8 +274,8 @@ func TestGatherK8sTurnsVersionErrorsIntoWarnings(t *testing.T) {
 		method      string
 		wantWarning string
 	}{
-		{"ServerVersion", "L0: 컨트롤 플레인 버전: boom"},
-		{"KubeProxyVersion", "L0: kube-proxy 버전: boom"},
+		{"ServerVersion", "L0: control plane version: boom"},
+		{"KubeProxyVersion", "L0: kube-proxy version: boom"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.method, func(t *testing.T) {
@@ -372,16 +375,18 @@ func TestWithAWSBuildsInventory(t *testing.T) {
 	// Arrange
 	s := snapTestSnapshot()
 	a := &fakeAWSCollector{
-		vpcs:    []string{"vpc-2", "", "vpc-1", "vpc-2"},
-		subnets: map[string]model.Subnet{"subnet-1": {AZ: "us-west-2a", VPCID: "vpc-1"}},
-		lbs:     []model.LoadBalancer{{Name: "lb", VPCID: "vpc-other"}},
-		rds:     []model.RDSInstance{{ID: "keep", VPCID: "vpc-1"}, {ID: "drop", VPCID: "vpc-9"}},
-		caches:  []model.CacheCluster{{ID: "drop", VPCID: ""}, {ID: "keep", VPCID: "vpc-2"}},
-		msk:     []model.MSKCluster{{Name: "keep", VPCID: "vpc-2"}, {Name: "drop", VPCID: "vpc-3"}},
-		ipZones: map[string]string{"10.0.3.1": "us-west-2c"},
+		vpcs:     []string{"vpc-2", "", "vpc-1", "vpc-2"},
+		accounts: []string{"111122223333"},
+		subnets:  map[string]model.Subnet{"subnet-1": {AZ: "us-west-2a", VPCID: "vpc-1"}},
+		lbs:      []model.LoadBalancer{{Name: "lb", VPCID: "vpc-other"}},
+		rds:      []model.RDSInstance{{ID: "keep", VPCID: "vpc-1"}, {ID: "drop", VPCID: "vpc-9"}},
+		caches:   []model.CacheCluster{{ID: "drop", VPCID: ""}, {ID: "keep", VPCID: "vpc-2"}},
+		msk:      []model.MSKCluster{{Name: "keep", VPCID: "vpc-2"}, {Name: "drop", VPCID: "vpc-3"}},
+		ipZones:  map[string]string{"10.0.3.1": "us-west-2c"},
 	}
 	want := &model.AWSInventory{
 		VPCIDs:        []string{"vpc-1", "vpc-2"},
+		Accounts:      []string{"111122223333"},
 		Subnets:       a.subnets,
 		IPZones:       a.ipZones,
 		LoadBalancers: a.lbs,
@@ -441,20 +446,20 @@ func TestWithAWSSkipsWhenVPCsUnavailable(t *testing.T) {
 			name:        "no instance IDs",
 			nodes:       []model.Node{{Name: "kind-node"}},
 			aws:         &fakeAWSCollector{vpcs: []string{"vpc-1"}},
-			wantWarning: "L1: 노드에 EC2 instance ID가 없어 AWS 조회를 건너뜀",
+			wantWarning: "L1: nodes have no EC2 instance ID; skipping AWS lookups",
 		},
 		{
 			name:          "instance lookup fails",
 			nodes:         []model.Node{{Name: "n", InstanceID: "i-1"}},
 			aws:           &fakeAWSCollector{vpcsErr: errSnapTest},
-			wantWarning:   "L1: 노드 인스턴스 VPC: boom",
+			wantWarning:   "L1: node instance VPCs: boom",
 			wantInstCalls: 1,
 		},
 		{
 			name:          "no VPCs found",
 			nodes:         []model.Node{{Name: "n", InstanceID: "i-1"}},
 			aws:           &fakeAWSCollector{},
-			wantWarning:   snapWarnNoVPCs,
+			wantWarning:   WarnNoVPCs,
 			wantInstCalls: 1,
 		},
 	}
@@ -503,12 +508,12 @@ func TestWithAWSPartialFailuresKeepOtherParts(t *testing.T) {
 	}
 	wantWarnings := []string{
 		"existing",
-		"L1: 서브넷: boom",
-		"L1: 로드밸런서: load balancer gone: not found",
-		"L1: 로드밸런서: classic: boom",
-		"L1: RDS 인스턴스: boom",
-		"L1: MSK 클러스터: boom",
-		"L1: 엔드포인트 IP의 AZ: boom",
+		"L1: subnets: boom",
+		"L1: load balancers: load balancer gone: not found",
+		"L1: load balancers: classic: boom",
+		"L1: RDS instances: boom",
+		"L1: MSK clusters: boom",
+		"L1: endpoint IP AZs: boom",
 	}
 
 	// Act
@@ -534,7 +539,7 @@ func TestWithAWSKeepsEmptyLoadBalancersWhenNothingWasDescribed(t *testing.T) {
 	if got.AWS == nil || got.AWS.LoadBalancers == nil || len(got.AWS.LoadBalancers) != 0 {
 		t.Errorf("AWS = %+v, want an empty non-nil load balancer list", got.AWS)
 	}
-	if !reflect.DeepEqual(got.Warnings, []string{"L1: 로드밸런서: boom"}) {
+	if !reflect.DeepEqual(got.Warnings, []string{"L1: load balancers: boom"}) {
 		t.Errorf("Warnings = %q, want the load balancer warning", got.Warnings)
 	}
 }
@@ -571,10 +576,10 @@ func TestEnrichersDoNotMutateInput(t *testing.T) {
 			return WithAWS(context.Background(), s, &fakeAWSCollector{vpcs: []string{"vpc-1"}, rdsErr: errSnapTest})
 		}},
 		{"WithVolume", func(s model.Snapshot) model.Snapshot {
-			return WithVolume(context.Background(), s, &fakeVolumeCollector{err: errSnapTest}, "7d")
+			return WithVolume(context.Background(), s, &fakeVolumeCollector{err: errSnapTest}, "7d", "")
 		}},
-		{"WithCost", func(s model.Snapshot) model.Snapshot {
-			return WithCost(context.Background(), s, &fakeCostCollector{err: errSnapTest}, time.Now())
+		{"WithBill", func(s model.Snapshot) model.Snapshot {
+			return WithBill(context.Background(), s, &fakeBillCollector{err: errSnapTest}, time.Now(), time.Now())
 		}},
 	}
 	for _, tt := range tests {
@@ -587,7 +592,7 @@ func TestEnrichersDoNotMutateInput(t *testing.T) {
 			// Act
 			first := tt.enrich(s)
 			firstWarnings := append([]string(nil), first.Warnings...)
-			_ = WithVolume(context.Background(), s, &fakeVolumeCollector{err: errors.New("second")}, "1d")
+			_ = WithVolume(context.Background(), s, &fakeVolumeCollector{err: errors.New("second")}, "1d", "")
 
 			// Assert
 			if !reflect.DeepEqual(s, pristine) {
@@ -609,7 +614,7 @@ func TestWithVolume(t *testing.T) {
 		v := &fakeVolumeCollector{recv: map[string]float64{"web/front-1": 1024}}
 
 		// Act
-		got := WithVolume(context.Background(), snapTestSnapshot(), v, "7d")
+		got := WithVolume(context.Background(), snapTestSnapshot(), v, "7d", "")
 
 		// Assert
 		want := &model.VolumeData{Window: "7d", RecvBytesPerS: map[string]float64{"web/front-1": 1024}}
@@ -627,7 +632,7 @@ func TestWithVolume(t *testing.T) {
 		s.Volume = &model.VolumeData{Window: "stale"}
 
 		// Act
-		got := WithVolume(context.Background(), s, v, "7d")
+		got := WithVolume(context.Background(), s, v, "7d", "")
 
 		// Assert
 		if got.Volume != nil {
@@ -669,7 +674,7 @@ func TestWithVolumeRejectsResultsMatchingNoEndpointPod(t *testing.T) {
 			v := &fakeVolumeCollector{recv: tt.recv}
 
 			// Act
-			got := WithVolume(context.Background(), s, v, "7d")
+			got := WithVolume(context.Background(), s, v, "7d", "")
 
 			// Assert
 			if gotVolume := got.Volume != nil; gotVolume != tt.wantVolume {
@@ -677,7 +682,7 @@ func TestWithVolumeRejectsResultsMatchingNoEndpointPod(t *testing.T) {
 			}
 			wantWarnings := []string{"existing"}
 			if tt.wantWarning {
-				wantWarnings = append(wantWarnings, "L2: Prometheus 결과에 이 클러스터의 엔드포인트 pod가 없음 — 다른 클러스터, cAdvisor 메트릭 누락, 또는 수집한 지 10분 미만")
+				wantWarnings = append(wantWarnings, "L2: the Prometheus result has no endpoint pod of this cluster (another cluster, missing cAdvisor metrics, or scraping for less than 10 minutes)")
 			}
 			if !reflect.DeepEqual(got.Warnings, wantWarnings) {
 				t.Errorf("Warnings = %q, want %q", got.Warnings, wantWarnings)
@@ -686,46 +691,69 @@ func TestWithVolumeRejectsResultsMatchingNoEndpointPod(t *testing.T) {
 	}
 }
 
-func TestWithCost(t *testing.T) {
-	month := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	cost := model.CostData{Month: "2026-08", ActualUSD: 42.5, UsageType: "USW2-DataTransfer-Regional-Bytes"}
+func TestWithBill(t *testing.T) {
+	from := time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)
+	to := from.AddDate(0, 0, 14)
+	line := model.BillLine{Day: from, UsageType: "USW2-DataTransfer-Regional-Bytes", Operation: "InterZone-In", Family: model.FamilyInterZone, USD: 1}
+	known := model.Bill{From: from, To: to, Lines: []model.BillLine{line}, Warnings: []string{"unknown operation \"X\""}}
+	stored := model.Bill{From: from, To: to, Lines: []model.BillLine{line}}
+	unknown := model.Bill{From: from, To: to, Unknown: true}
 	tests := []struct {
-		name        string
-		region      string
-		collector   *fakeCostCollector
-		wantCost    *model.CostData
-		wantWarning string
-		wantCalls   int
+		name         string
+		region       string
+		inventory    *model.AWSInventory
+		collector    *fakeBillCollector
+		wantBill     *model.Bill
+		wantWarnings []string
+		wantAccounts []string
+		wantCalls    int
 	}{
-		{"success sets cost", "us-west-2", &fakeCostCollector{cost: cost}, &cost, "", 1},
-		{"failure warns", "us-west-2", &fakeCostCollector{err: errSnapTest}, nil, "L3: inter-AZ 실제 비용: boom", 1},
-		{"unknown region skips call", "", &fakeCostCollector{cost: cost}, nil, snapWarnNoRegion, 0},
+		{"success keeps the bill and moves its warnings", "us-west-2", &model.AWSInventory{Accounts: []string{"111122223333"}},
+			&fakeBillCollector{bill: known}, &stored, []string{"L3: unknown operation \"X\""}, []string{"111122223333"}, 1},
+		{"unknown bill is kept, not dropped", "us-west-2", nil, &fakeBillCollector{bill: unknown}, &unknown, nil, nil, 1},
+		{"failure warns", "us-west-2", nil, &fakeBillCollector{err: errSnapTest}, nil, []string{"L3: daily bill: boom"}, nil, 1},
+		{"unknown region skips call", "", nil, &fakeBillCollector{bill: known}, nil, []string{snapWarnNoRegion}, nil, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			s := model.Snapshot{Region: tt.region}
+			s := model.Snapshot{Region: tt.region, AWS: tt.inventory}
 
 			// Act
-			got := WithCost(context.Background(), s, tt.collector, month)
+			got := WithBill(context.Background(), s, tt.collector, from, to)
 
 			// Assert
-			if !reflect.DeepEqual(got.Cost, tt.wantCost) {
-				t.Errorf("Cost = %+v, want %+v", got.Cost, tt.wantCost)
+			if !reflect.DeepEqual(got.Bill, tt.wantBill) {
+				t.Errorf("Bill = %+v, want %+v", got.Bill, tt.wantBill)
 			}
-			var wantWarnings []string
-			if tt.wantWarning != "" {
-				wantWarnings = []string{tt.wantWarning}
-			}
-			if !reflect.DeepEqual(got.Warnings, wantWarnings) {
-				t.Errorf("Warnings = %q, want %q", got.Warnings, wantWarnings)
+			if !reflect.DeepEqual(got.Warnings, tt.wantWarnings) {
+				t.Errorf("Warnings = %q, want %q", got.Warnings, tt.wantWarnings)
 			}
 			if tt.collector.calls != tt.wantCalls {
 				t.Errorf("calls = %d, want %d", tt.collector.calls, tt.wantCalls)
 			}
-			if tt.wantCalls > 0 && (tt.collector.gotRegion != tt.region || !tt.collector.gotMonth.Equal(month)) {
-				t.Errorf("called with %q %v, want %q %v", tt.collector.gotRegion, tt.collector.gotMonth, tt.region, month)
+			c := tt.collector
+			if tt.wantCalls > 0 && (c.gotRegion != tt.region || !reflect.DeepEqual(c.gotAccounts, tt.wantAccounts) || !c.gotFrom.Equal(from) || !c.gotTo.Equal(to)) {
+				t.Errorf("called with %q %v %v..%v", c.gotRegion, c.gotAccounts, c.gotFrom, c.gotTo)
 			}
 		})
+	}
+}
+
+func TestWithVolumeNoMatchWarningNamesTheSelector(t *testing.T) {
+	// Arrange
+	s := model.Snapshot{Services: []model.Service{{Namespace: "shop", Name: "api", Endpoints: []model.Endpoint{
+		{IP: "10.0.1.1", Ready: true, PodName: "api-1"},
+	}}}}
+	v := &fakeVolumeCollector{recv: map[string]float64{}}
+
+	// Act
+	got := WithVolume(context.Background(), s, v, "7d", `cluster="prod-a"`)
+
+	// Assert
+	want := []string{"L2: the Prometheus result has no endpoint pod of this cluster (another cluster, missing cAdvisor metrics, " +
+		`or scraping for less than 10 minutes) (--prom-selector "cluster=\"prod-a\"" applied)`}
+	if got.Volume != nil || !reflect.DeepEqual(got.Warnings, want) {
+		t.Errorf("Volume = %+v, Warnings = %q, want nil and %q", got.Volume, got.Warnings, want)
 	}
 }

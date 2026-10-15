@@ -1,0 +1,9 @@
+{
+  "from": "2026-09-08T00:00:00Z",
+  "to": "2026-09-22T00:00:00Z",
+  "lines": [],
+  "unknown": true,
+  "warnings": [
+    "Cost Explorer bill unknown (AccessDeniedException), not $0: AccessDeniedException: User: arn:aws:iam::111122223333:user/ci is not authorized to perform: ce:GetCostAndUsage"
+  ]
+}

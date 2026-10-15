@@ -25,26 +25,26 @@ import (
 type verdict struct {
 	key      string
 	ruleID   string
-	billable bool
+	billable model.Tri
 }
 
 // expectedVerdicts are the L0 verdicts for hack/e2e/manifests/scenarios.yaml and traffic.yaml.
 var expectedVerdicts = []verdict{
-	{"payments/api", "clusterip-cross-az", true},
-	{"cache/redis", "clusterip-cross-az-partial", true},
-	{"orders/api", "topology-aware-routing", false},
-	{"notify/worker", "hints-withheld", true},
-	{"events/kafka", "headless-cross-az", true},
-	{"ingress-alb/web-ip", "alb-ip-target-mode", false},
-	{"ingress-alb/web-instance", "nodeport-hop-cross-az", true},
-	{"ingress-alb/web-local", "alb-private-same-vpc", false},
-	{"ingress-automode/web", "alb-ip-target-mode", false},
-	{"ingress-nginx/web", "ingress-direct-backend", false},
-	{"edge/nlb-xz", "nlb-cross-zone", true},
-	{"edge/nlb-unknown", "nlb-cross-zone-unknown", true},
-	{"traffic/spread-default", "clusterip-cross-az", true},
-	{"traffic/spread-close", "topology-aware-routing", false},
-	{"traffic/one-zone", "clusterip-cross-az-partial", true},
+	{"payments/api", "clusterip-cross-az", model.TriTrue},
+	{"cache/redis", "clusterip-cross-az-partial", model.TriTrue},
+	{"orders/api", "topology-aware-routing", model.TriFalse},
+	{"notify/worker", "hints-withheld", model.TriTrue},
+	{"events/kafka", "headless-cross-az", model.TriTrue},
+	{"ingress-alb/web-ip", "alb-ip-target-mode", model.TriFalse},
+	{"ingress-alb/web-instance", "nodeport-hop-cross-az", model.TriTrue},
+	{"ingress-alb/web-local", "alb-private-same-vpc", model.TriFalse},
+	{"ingress-automode/web", "alb-ip-target-mode", model.TriFalse},
+	{"ingress-nginx/web", "ingress-direct-backend", model.TriFalse},
+	{"edge/nlb-xz", "nlb-cross-zone", model.TriTrue},
+	{"edge/nlb-unknown", "nlb-cross-zone-unknown", model.TriTrue},
+	{"traffic/spread-default", "clusterip-cross-az", model.TriTrue},
+	{"traffic/spread-close", "topology-aware-routing", model.TriFalse},
+	{"traffic/one-zone", "clusterip-cross-az-partial", model.TriTrue},
 }
 
 // rulesUnderTest are the rules the scenarios exist for; expectedVerdicts must reach each of them.
@@ -75,7 +75,7 @@ func TestScanVerdicts(t *testing.T) {
 			continue
 		}
 		if p.RuleID != want.ruleID || p.Billable != want.billable {
-			t.Errorf("%s: rule %s billable=%t, want %s billable=%t (facts %+v)", want.key, p.RuleID, p.Billable, want.ruleID, want.billable, p.Facts)
+			t.Errorf("%s: rule %s billable=%s, want %s billable=%s (facts %+v)", want.key, p.RuleID, p.Billable, want.ruleID, want.billable, p.Facts)
 		}
 	}
 	// The control plane is v1.35, so the fix must use the 1.34+ name.
@@ -88,7 +88,7 @@ func TestScanVerdicts(t *testing.T) {
 // rules/rules.yaml, or a rule under test that no scenario expects all fail before the cluster is asked.
 func checkExpectedTable(t *testing.T) {
 	t.Helper()
-	billable := map[string]bool{}
+	billable := map[string]model.Tri{}
 	for _, r := range classify.Default().Rules {
 		billable[r.ID] = r.Billable
 	}
@@ -99,7 +99,7 @@ func checkExpectedTable(t *testing.T) {
 		case !ok:
 			t.Fatalf("expectedVerdicts %s: rule %q is not in rules/rules.yaml", v.key, v.ruleID)
 		case b != v.billable:
-			t.Fatalf("expectedVerdicts %s: rule %s is billable=%t in rules/rules.yaml, table says %t", v.key, v.ruleID, b, v.billable)
+			t.Fatalf("expectedVerdicts %s: rule %s is billable=%s in rules/rules.yaml, table says %s", v.key, v.ruleID, b, v.billable)
 		}
 		covered[v.ruleID] = true
 	}

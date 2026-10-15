@@ -1,0 +1,107 @@
+[
+  {
+    "GroupDefinitions": [
+      {
+        "Type": "DIMENSION",
+        "Key": "USAGE_TYPE"
+      },
+      {
+        "Type": "DIMENSION",
+        "Key": "OPERATION"
+      }
+    ],
+    "ResultsByTime": [
+      {
+        "TimePeriod": {
+          "Start": "2026-09-08",
+          "End": "2026-09-09"
+        },
+        "Total": {},
+        "Groups": [
+          {
+            "Keys": [
+              "DataTransfer-Regional-Bytes",
+              "InterZone-In"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.7",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "70",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "DataTransfer-Regional-Bytes",
+              "InterZone-Out"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.69",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "69",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "USE1-DataTransfer-xAZ-Out-Bytes",
+              "Unknown"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "12",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "USE1-VpcPeering-Out-Bytes",
+              "VPCPeering"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.03",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "3",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "DataTransfer-Out-Bytes",
+              "RunInstances"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "4.5",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "50",
+                "Unit": "GB"
+              }
+            }
+          }
+        ],
+        "Estimated": false
+      }
+    ],
+    "DimensionValueAttributes": []
+  }
+]

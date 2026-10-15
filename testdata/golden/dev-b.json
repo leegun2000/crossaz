@@ -8,7 +8,7 @@
   "layers": [
     "L0"
   ],
-  "exposure": "none",
+  "exposure": "unlikely",
   "paths": [],
   "excluded": [
     {
@@ -42,9 +42,9 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "same-az",
-      "reason": "호출자와 목적지가 모두 같은 AZ. 같은 AZ 내 사설 IP 전송은 무료",
+      "reason": "Caller and destination are in the same AZ. Private-IP transfer within an AZ is free",
       "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
       "rateGb": 0,
       "ruleConfidence": "high",
@@ -84,9 +84,9 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "same-az",
-      "reason": "호출자와 목적지가 모두 같은 AZ. 같은 AZ 내 사설 IP 전송은 무료",
+      "reason": "Caller and destination are in the same AZ. Private-IP transfer within an AZ is free",
       "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
       "rateGb": 0,
       "ruleConfidence": "high",
@@ -126,9 +126,9 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "false",
       "ruleId": "same-az",
-      "reason": "호출자와 목적지가 모두 같은 AZ. 같은 AZ 내 사설 IP 전송은 무료",
+      "reason": "Caller and destination are in the same AZ. Private-IP transfer within an AZ is free",
       "sourceUrl": "https://aws.amazon.com/ec2/pricing/on-demand/",
       "rateGb": 0,
       "ruleConfidence": "high",
@@ -168,10 +168,10 @@
         "hintsConfigured": false,
         "directIngressBackend": false
       },
-      "billable": false,
+      "billable": "unknown",
       "ruleId": "zone-unknown",
-      "reason": "목적지 AZ를 알 수 없음 (EndpointSlice zone 없음). AWS 자격증명이 있으면 IP→AZ로 해석",
-      "rateGb": 0,
+      "reason": "Destination AZ unknown (no zone in the EndpointSlice). With AWS credentials the IP is resolved to an AZ",
+      "rateGb": 0.02,
       "ruleConfidence": "low",
       "bytesPerMo": null,
       "crossAzFraction": 0,

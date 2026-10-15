@@ -1,0 +1,4 @@
+{
+  "__type": "AccessDeniedException",
+  "Message": "User: arn:aws:iam::111122223333:user/ci is not authorized to perform: ce:GetCostAndUsage"
+}

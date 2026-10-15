@@ -1,0 +1,46 @@
+{
+  "from": "2026-09-08T00:00:00Z",
+  "to": "2026-09-22T00:00:00Z",
+  "lines": [
+    {
+      "day": "2026-09-08T00:00:00Z",
+      "account": "111122223333",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "InterZone-In",
+      "family": "interzone",
+      "usd": 1,
+      "gb": 100
+    },
+    {
+      "day": "2026-09-08T00:00:00Z",
+      "account": "111122223333",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "NatGateway-Out",
+      "family": "other",
+      "usd": 0.3,
+      "gb": 30
+    },
+    {
+      "day": "2026-09-09T00:00:00Z",
+      "account": "111122223333",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "NatGateway-Out",
+      "family": "other",
+      "usd": 0.2,
+      "gb": 20
+    },
+    {
+      "day": "2026-09-09T00:00:00Z",
+      "account": "111122223333",
+      "usageType": "APN2-DataTransfer-Regional-Bytes",
+      "operation": "TransitGateway",
+      "family": "other",
+      "usd": 0.1,
+      "gb": 10
+    }
+  ],
+  "warnings": [
+    "unknown operation \"NatGateway-Out\": classified as family other (included in the total)",
+    "unknown operation \"TransitGateway\": classified as family other (included in the total)"
+  ]
+}

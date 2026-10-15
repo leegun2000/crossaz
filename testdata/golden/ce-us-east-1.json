@@ -1,0 +1,42 @@
+{
+  "from": "2026-09-08T00:00:00Z",
+  "to": "2026-09-22T00:00:00Z",
+  "lines": [
+    {
+      "day": "2026-09-08T00:00:00Z",
+      "account": "111122223333",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "InterZone-In",
+      "family": "interzone",
+      "usd": 0.7,
+      "gb": 70
+    },
+    {
+      "day": "2026-09-08T00:00:00Z",
+      "account": "111122223333",
+      "usageType": "DataTransfer-Regional-Bytes",
+      "operation": "InterZone-Out",
+      "family": "interzone",
+      "usd": 0.69,
+      "gb": 69
+    },
+    {
+      "day": "2026-09-08T00:00:00Z",
+      "account": "111122223333",
+      "usageType": "USE1-DataTransfer-xAZ-Out-Bytes",
+      "operation": "Unknown",
+      "family": "xaz-free",
+      "usd": 0,
+      "gb": 12
+    },
+    {
+      "day": "2026-09-08T00:00:00Z",
+      "account": "111122223333",
+      "usageType": "USE1-VpcPeering-Out-Bytes",
+      "operation": "VPCPeering",
+      "family": "vpcpeering",
+      "usd": 0.03,
+      "gb": 3
+    }
+  ]
+}

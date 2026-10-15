@@ -192,7 +192,7 @@ func TestAnalyzeWarnings(t *testing.T) {
 		{
 			name:     "region without a built-in rate warns with the default rate",
 			snapshot: model.Snapshot{Region: "cn-north-1", Nodes: zonal("cn-north-1a")},
-			want:     []string{"리전 cn-north-1 요율이 내장되어 있지 않아 기본값 $0.02/GB 사용 — --rate-gb로 지정"},
+			want:     []string{"no built-in rate for region cn-north-1, using the default $0.02/GB; set --rate-gb"},
 		},
 		{
 			name:     "rate override silences the missing region rate",
@@ -202,22 +202,22 @@ func TestAnalyzeWarnings(t *testing.T) {
 		{
 			name:     "unknown region asks for --region or --rate-gb and skips the zone check",
 			snapshot: model.Snapshot{Nodes: zonal("us-west-2-lax-1a")},
-			want:     []string{"리전을 알 수 없어 기본값 $0.02/GB 사용 — --region 또는 --rate-gb로 지정"},
+			want:     []string{"region unknown, using the default $0.02/GB; set --region or --rate-gb"},
 		},
 		{
 			name:     "local and wavelength zone nodes are listed once, sorted",
 			snapshot: model.Snapshot{Region: "us-west-2", Nodes: zonal("us-west-2a", "us-west-2-wl1-sea-wlz-1", "us-west-2-lax-1a", "us-west-2-lax-1a", "")},
-			want:     []string{"Local/Wavelength Zone 노드 발견(us-west-2-lax-1a, us-west-2-wl1-sea-wlz-1): 요율이 달라 해당 경로 금액 생략"},
+			want:     []string{"Local/Wavelength Zone nodes found (us-west-2-lax-1a, us-west-2-wl1-sea-wlz-1): their rate differs, so amounts of paths touching them are omitted"},
 		},
 		{
 			name:     "collection warnings come first",
-			snapshot: model.Snapshot{Region: "cn-north-1", Warnings: []string{"L1: 서브넷: denied"}},
-			want:     []string{"L1: 서브넷: denied", "리전 cn-north-1 요율이 내장되어 있지 않아 기본값 $0.02/GB 사용 — --rate-gb로 지정"},
+			snapshot: model.Snapshot{Region: "cn-north-1", Warnings: []string{"L1: subnets: denied"}},
+			want:     []string{"L1: subnets: denied", "no built-in rate for region cn-north-1, using the default $0.02/GB; set --rate-gb"},
 		},
 		{
 			name:     "a zone that only shares the region prefix is not regular",
 			snapshot: model.Snapshot{Region: "us-east-1", Nodes: zonal("us-east-1A", "us-east-1bb")},
-			want:     []string{"Local/Wavelength Zone 노드 발견(us-east-1A, us-east-1bb): 요율이 달라 해당 경로 금액 생략"},
+			want:     []string{"Local/Wavelength Zone nodes found (us-east-1A, us-east-1bb): their rate differs, so amounts of paths touching them are omitted"},
 		},
 	}
 	for _, tt := range tests {
@@ -289,7 +289,7 @@ func TestAnalyzeBlanksLocalZoneAmounts(t *testing.T) {
 			name:         "path touching a Local Zone keeps bytes but loses its amount and confidence",
 			snapshot:     snapshot("us-west-2a", "us-west-2-lax-1a"),
 			wantConf:     model.Low,
-			wantNote:     "Local/Wavelength Zone 포함: 요율이 달라 금액 생략",
+			wantNote:     "touches a Local/Wavelength Zone: different rate, amount omitted",
 			wantExposure: model.ExposureLikely,
 		},
 		{
@@ -314,8 +314,8 @@ func TestAnalyzeBlanksLocalZoneAmounts(t *testing.T) {
 				t.Fatalf("no app/api path in %d paths", len(paths))
 			}
 			p := paths[i]
-			if !p.Billable || p.BytesPerMo == nil || (p.CostPerMo != nil) != tt.wantCost {
-				t.Errorf("billable=%t bytes=%v cost=%v, want billable with bytes and cost known=%t", p.Billable, p.BytesPerMo, p.CostPerMo, tt.wantCost)
+			if p.Billable != model.TriTrue || p.BytesPerMo == nil || (p.CostPerMo != nil) != tt.wantCost {
+				t.Errorf("billable=%s bytes=%v cost=%v, want billable with bytes and cost known=%t", p.Billable, p.BytesPerMo, p.CostPerMo, tt.wantCost)
 			}
 			if p.Confidence != tt.wantConf || p.ConfidenceNote != tt.wantNote {
 				t.Errorf("confidence = %q (%q), want %q (%q)", p.Confidence, p.ConfidenceNote, tt.wantConf, tt.wantNote)
@@ -327,5 +327,26 @@ func TestAnalyzeBlanksLocalZoneAmounts(t *testing.T) {
 				t.Errorf("TotalUSD = %v, want known 0 without the Local Zone amount", r.TotalUSD)
 			}
 		})
+	}
+}
+
+func TestWithoutLocalZoneAmountsMarksUnknownPaths(t *testing.T) {
+	// Arrange: an unknown-billable path whose source sits in a Local Zone keeps the parent-region rate
+	zone := "us-west-2-lax-1a"
+	bytes := 50e9
+	unknown := model.Path{Billable: model.TriUnknown, Confidence: model.Medium, RateGB: 0.02, BytesPerMo: &bytes,
+		Source: model.Workload{AZDist: model.AZDistribution{zone: 1}}}
+	free := unknown
+	free.Billable = model.TriFalse
+
+	// Act
+	got := withoutLocalZoneAmounts([]model.Path{unknown, free}, []string{zone})
+
+	// Assert
+	if got[0].Confidence != model.Low || got[0].ConfidenceNote != model.NoteLocalZone {
+		t.Errorf("unknown path = %q (%q), want low with the Local Zone note", got[0].Confidence, got[0].ConfidenceNote)
+	}
+	if got[1].ConfidenceNote != "" || unknown.ConfidenceNote != "" {
+		t.Errorf("free path note = %q, input note = %q, want both untouched", got[1].ConfidenceNote, unknown.ConfidenceNote)
 	}
 }

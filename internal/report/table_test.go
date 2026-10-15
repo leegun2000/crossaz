@@ -18,7 +18,7 @@ func billablePath() model.Path {
 		Dest:           model.Target{Kind: model.TargetService, Ref: "payments/api", AZDist: threeZones},
 		Route:          model.RouteClusterIP,
 		Facts:          model.Facts{Route: model.RouteClusterIP, AZSpread: "multi", Evidence: model.EvidenceK8s},
-		Billable:       true,
+		Billable:       model.TriTrue,
 		RuleID:         "clusterip-cross-az",
 		RateGB:         0.02,
 		RuleConfidence: model.High,
@@ -35,6 +35,7 @@ func excludedPath() model.Path {
 		Dest:       model.Target{Kind: model.TargetService, Ref: "ingress/web", AZDist: threeZones},
 		Route:      model.RouteALB,
 		Facts:      model.Facts{TargetType: "instance"},
+		Billable:   model.TriFalse,
 		RuleID:     "alb-private-same-vpc",
 		BytesPerMo: ptr(6e12),
 		Confidence: model.High,
@@ -45,7 +46,7 @@ func uncertainPath() model.Path {
 	return model.Path{
 		Dest:       model.Target{Kind: model.TargetRDS, Ref: "orders-db", AZDist: model.AZDistribution{"ap-northeast-2a": 1}},
 		Route:      model.RouteExternal,
-		Billable:   true,
+		Billable:   model.TriTrue,
 		RuleID:     "rds-cross-az",
 		Confidence: model.Low,
 	}
@@ -67,11 +68,13 @@ func likelyResult() model.ScanResult {
 		TotalUSD:  ptr(133.2),
 		Warnings:  []string{"L1: rds: AccessDenied"},
 		Verify: &model.VerifyResult{
-			Month:        "2026-08",
-			EstimatedUSD: ptr(133.2),
-			ActualUSD:    118,
-			Ratio:        ptr(1.1288),
-			Note:         "제외 규칙이 대체로 맞음",
+			Window:        "2026-08-18..2026-08-31",
+			Days:          14,
+			EstimatedDays: 1,
+			EstimatedUSD:  ptr(133.2),
+			ActualUSD:     ptr(118),
+			Ratio:         ptr(1.1288),
+			Note:          "exclusion rules look broadly right",
 		},
 	}
 }
@@ -113,7 +116,7 @@ func TestTableExposureNonePrintsExactlyTwoLines(t *testing.T) {
 	out := renderTable(t, r)
 
 	// Assert
-	want := "Cluster: dev-b   AZs: 1   Nodes: 3\nExposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습니다.\n"
+	want := "Cluster: dev-b   AZs: 1   Nodes: 3\nExposure: NONE — all nodes are in a single AZ and there is no billable path.\n"
 	if out != want {
 		t.Errorf("Table() =\n%q\nwant\n%q", out, want)
 	}
@@ -151,10 +154,10 @@ func TestTableLikelyResultShowsAllBlocks(t *testing.T) {
 		"Run `crossaz explain payments/api` for rule details.",
 		"VERIFY",
 		"  Estimated:  ~$133/mo",
-		"  Actual:     $118/mo   (Cost Explorer DataTransfer-Regional-Bytes, 2026-08 — 계정·리전 전체)",
-		"  Ratio:      1.13   제외 규칙이 대체로 맞음",
-		"  Ratio > 1.5 → 제외 규칙 누락 의심",
-		"  Ratio < 0.5 → 클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심",
+		"  Actual:     $118/mo   (Cost Explorer DataTransfer-Regional-Bytes InterZone, 2026-08-18..2026-08-31, 14 days, 1 day provisional (Estimated); whole account and region)",
+		"  Ratio:      1.13   exclusion rules look broadly right",
+		"  Ratio > 1.5 → suspect a missing exclusion rule",
+		"  Ratio < 0.5 → suspect leaks outside the cluster (RDS/MSK/NLB/other workloads)",
 		"WARNINGS",
 		"  - L1: rds: AccessDenied",
 	}
@@ -262,6 +265,7 @@ func TestTableFooterWithoutVolumeLayer(t *testing.T) {
 	r := likelyResult()
 	r.TotalUSD = nil
 	r.Verify.EstimatedUSD = nil
+	r.Verify.ActualUSD = nil
 	r.Verify.Ratio = nil
 	r.Paths[0].Fix = nil
 
@@ -270,8 +274,9 @@ func TestTableFooterWithoutVolumeLayer(t *testing.T) {
 
 	// Assert
 	for _, want := range []string{
-		"Estimated total: ? (L2 없음 — --prometheus-url)",
+		"Estimated total: ? (no L2 — --prometheus-url)",
 		"  Estimated:  ?",
+		"  Actual:     ?   (Cost Explorer",
 		"  Ratio:      ?   ",
 	} {
 		if !strings.Contains(out, want) {
@@ -280,6 +285,64 @@ func TestTableFooterWithoutVolumeLayer(t *testing.T) {
 	}
 	if row := lineWith(t, out, "payments/api"); !strings.HasSuffix(row, "—") {
 		t.Errorf("fix column without fix should be a dash: %q", row)
+	}
+}
+
+func unknownPath(ref string, bytes *float64) model.Path {
+	return model.Path{
+		Dest:       model.Target{Kind: model.TargetService, Ref: ref, AZDist: threeZones},
+		Route:      model.RouteClusterIP,
+		Billable:   model.TriUnknown,
+		RuleID:     "zone-unknown",
+		BytesPerMo: bytes,
+		Confidence: model.Low,
+	}
+}
+
+func TestTableUnconfirmedLine(t *testing.T) {
+	tests := []struct {
+		name      string
+		uncertain []model.Path
+		max       *float64
+		wantLine  string
+		wantRow   []string
+	}{
+		{"known max", []model.Path{uncertainPath(), unknownPath("ns/u", ptr(150e9))}, ptr(3),
+			"Unconfirmed: $0–$3.00/mo (1 path with undecided billing, not in the total)\n", []string{"150 GB", "?", "low", "zone-unknown"}},
+		{"unknown max", []model.Path{unknownPath("ns/u", nil), unknownPath("ns/v", nil)}, nil,
+			"Unconfirmed: $0–? (2 paths with undecided billing, not in the total)\n", []string{"?", "?", "low", "zone-unknown"}},
+		{"no unknown paths, no line", []model.Path{uncertainPath()}, nil, "", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			r := likelyResult()
+			r.Uncertain = tt.uncertain
+			r.UnconfirmedMaxUSD = tt.max
+
+			// Act
+			out := renderTable(t, r)
+
+			// Assert
+			if tt.wantLine == "" {
+				if strings.Contains(out, "\nUnconfirmed:") {
+					t.Errorf("unexpected Unconfirmed line:\n%s", out)
+				}
+				return
+			}
+			if !strings.Contains(out, "Estimated total: ~$133/mo\n"+tt.wantLine) {
+				t.Errorf("want %q right after the total:\n%s", tt.wantLine, out)
+			}
+			row := lineWith(t, out, "ns/u ")
+			for _, tok := range tt.wantRow {
+				if !strings.Contains(row, tok) {
+					t.Errorf("row %q missing %q", row, tok)
+				}
+			}
+			if strings.Contains(row, notBilledMark) {
+				t.Errorf("unknown-billable row must not show %q: %q", notBilledMark, row)
+			}
+		})
 	}
 }
 

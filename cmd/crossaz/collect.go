@@ -21,10 +21,12 @@ import (
 
 const (
 	credentialsTimeout   = 10 * time.Second
-	warnNoAWSCredentials = "L1: AWS 자격증명을 찾지 못해 L0만 실행"
+	warnNoAWSCredentials = "L1: no AWS credentials found; running L0 only"
 	// Without L1 the credentials may belong to another account, so Cost Explorer would bill and report the wrong one.
-	warnVerifyWithoutL1          = "L3: L1(AWS 인벤토리)을 얻지 못해 --verify 건너뜀"
-	warnFixtureIgnoresCollection = "--fixture 사용 중: --prometheus-url/--verify는 무시됨 (fixture에 포함된 레이어만 사용)"
+	warnVerifyWithoutL1          = "L3: --verify skipped because L1 (the AWS inventory) is unavailable"
+	warnFixtureIgnoresCollection = "--fixture in use: --prometheus-url/--verify are ignored (only the layers in the fixture are used)"
+	// verifyDays is the closed-day window scan --verify compares against.
+	verifyDays = 14
 )
 
 // sources are the live data sources. Tests substitute fakes; fixtures need none.
@@ -39,7 +41,7 @@ type sources struct {
 type awsSession struct {
 	region    string
 	inventory collect.AWSCollector
-	cost      collect.CostCollector
+	bill      collect.BillCollector
 }
 
 func liveSources() sources {
@@ -55,26 +57,40 @@ func loadSnapshot(ctx context.Context, o options, src sources) (model.Snapshot, 
 		}
 		return withFixtureWarning(withOverrides(s, o), o), nil
 	}
-	k, contextCluster, err := src.kube(o.kubeconfig, o.kubeContext)
+	s, sess, err := collectL0L1(ctx, o, src)
 	if err != nil {
 		return model.Snapshot{}, err
-	}
-	s, err := collect.GatherK8s(ctx, k, contextCluster)
-	if err != nil {
-		return model.Snapshot{}, err
-	}
-	s = withOverrides(s, o)
-	var sess *awsSession
-	if !o.noAWS {
-		s, sess = withAWS(ctx, s, src)
 	}
 	if o.promURL != "" {
-		s = collect.WithVolume(ctx, s, collect.NewPrometheus(o.promURL, http.DefaultClient), o.promWindow)
+		matchers, err := collect.ParsePromSelector(o.promSelector) // already validated with the flags
+		if err != nil {
+			return model.Snapshot{}, fmt.Errorf("--prom-selector: %w", err)
+		}
+		prom := collect.NewPrometheus(o.promURL, matchers, http.DefaultClient)
+		s = collect.WithVolume(ctx, s, prom, o.promWindow, o.promSelector)
 	}
 	if o.verify {
 		s = withVerify(ctx, s, sess, src)
 	}
 	return s, nil
+}
+
+// collectL0L1 collects L0 and, unless --no-aws, L1. The session is nil when AWS is skipped or unusable.
+func collectL0L1(ctx context.Context, o options, src sources) (model.Snapshot, *awsSession, error) {
+	k, contextCluster, err := src.kube(o.kubeconfig, o.kubeContext)
+	if err != nil {
+		return model.Snapshot{}, nil, err
+	}
+	s, err := collect.GatherK8s(ctx, k, contextCluster)
+	if err != nil {
+		return model.Snapshot{}, nil, err
+	}
+	s = withOverrides(s, o)
+	if o.noAWS {
+		return s, nil, nil
+	}
+	s, sess := withAWS(ctx, s, src)
+	return s, sess, nil
 }
 
 func withFixtureWarning(s model.Snapshot, o options) model.Snapshot {
@@ -93,7 +109,8 @@ func withVerify(ctx context.Context, s model.Snapshot, sess *awsSession, src sou
 		out.Warnings = append(slices.Clone(s.Warnings), warnVerifyWithoutL1)
 		return out
 	}
-	return collect.WithCost(ctx, s, sess.cost, previousMonth(src.now()))
+	from, to := closedDays(src.now(), verifyDays)
+	return collect.WithBill(ctx, s, sess.bill, from, to)
 }
 
 func withOverrides(s model.Snapshot, o options) model.Snapshot {
@@ -116,10 +133,11 @@ func withAWS(ctx context.Context, s model.Snapshot, src sources) (model.Snapshot
 	return collect.WithAWS(ctx, out, sess.inventory), &sess
 }
 
-// previousMonth is the first instant (UTC) of the calendar month before now.
-func previousMonth(now time.Time) time.Time {
+// closedDays is the last days closed UTC days before now: [from, to) with to = today's UTC midnight.
+func closedDays(now time.Time, days int) (time.Time, time.Time) {
 	u := now.UTC()
-	return time.Date(u.Year(), u.Month()-1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(u.Year(), u.Month(), u.Day(), 0, 0, 0, 0, time.UTC)
+	return to.AddDate(0, 0, -days), to
 }
 
 func liveKube(kubeconfig, kubeContext string) (collect.K8sCollector, string, error) {
@@ -180,6 +198,6 @@ func liveAWS(ctx context.Context, region string) (awsSession, error) {
 	return awsSession{
 		region:    cfg.Region,
 		inventory: collect.NewAWSFromConfig(cfg),
-		cost:      collect.NewCostExplorerFromConfig(cfg),
+		bill:      collect.NewCostExplorerFromConfig(cfg),
 	}, nil
 }

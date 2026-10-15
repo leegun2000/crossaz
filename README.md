@@ -1,18 +1,20 @@
 # crossaz
 
-EKS(VPC CNI) 클러스터에서 **실제로 청구되는** cross-AZ 트래픽 경로만 골라내고, 월 비용을 추정하고, 조치를 제시하는 read-only CLI.
+English | [한국어](README.ko.md)
 
-대부분의 도구는 "AZ를 넘으면 빨간색"으로 칠합니다. 그래서 ALB 뒤 서비스(사설 IP·동일 VPC 전송은 무료)를 누수로 잘못 잡고, 반대로 엔드포인트가 한 AZ에 몰린 서비스(다른 AZ 호출자는 전부 과금)는 놓칩니다. crossaz가 다른 점은 측정 정밀도가 아니라 **과금 판정**입니다. 경로마다 규칙([`rules/rules.yaml`](rules/rules.yaml))으로 과금 여부를 가리고, 판정마다 AWS 공식 문서 근거 URL을 붙입니다.
+A read-only CLI that finds the cross-AZ traffic paths in an EKS (VPC CNI) cluster that are **actually billed**, estimates their monthly cost, and tells you how to fix them.
+
+Most tools paint "crossed an AZ" red. That flags services behind an ALB as leaks, even though private-IP, same-VPC traffic from an ALB is free. It also misses services whose endpoints all sit in one AZ, where every caller in the other AZs is billed. What sets crossaz apart is not measurement precision but the **billing verdict**. Every path is classified by a rule in [`rules/rules.yaml`](rules/rules.yaml), and every verdict carries the URL of the AWS documentation it rests on.
 
 ---
 
-## 필요 권한
+## Required permissions
 
-**쓰기 API는 어떤 경로로도 호출하지 않습니다 — SDK 클라이언트를 Describe/List/Get만 가진 인터페이스로 감싸 컴파일 타임에 강제하고, 테스트가 이를 검사합니다 ([`internal/collect/readonly.go`](internal/collect/readonly.go)).**
+**crossaz never calls a write API.** Each SDK client is wrapped in an interface that only has Describe/List/Get methods, so this is enforced at compile time, and a test checks it ([`internal/collect/readonly.go`](internal/collect/readonly.go)).
 
-### AWS IAM (L1, 선택)
+### AWS IAM (L1, optional)
 
-자격증명이 없거나 `--no-aws`면 L1 없이 실행됩니다. `elasticloadbalancing:DescribeLoadBalancers`는 ALB/NLB와 Classic LB를 모두 커버합니다.
+Without credentials, or with `--no-aws`, crossaz runs without L1. `elasticloadbalancing:DescribeLoadBalancers` covers both ALB/NLB and Classic Load Balancers.
 
 ```json
 {
@@ -40,7 +42,7 @@ EKS(VPC CNI) 클러스터에서 **실제로 청구되는** cross-AZ 트래픽 �
 }
 ```
 
-`--verify`(L3)를 쓸 때만 아래 권한을 추가합니다. **Cost Explorer API는 요청(페이지)당 $0.01이 청구됩니다.**
+Add the following only for `crossaz bill` and `--verify` (L3). **The Cost Explorer API charges $0.01 per request (page).** Daily results grouped by usage type and operation can span several pages, so a single run can cost more than $0.01.
 
 ```json
 {
@@ -51,7 +53,7 @@ EKS(VPC CNI) 클러스터에서 **실제로 청구되는** cross-AZ 트래픽 �
 }
 ```
 
-### Kubernetes RBAC (L0, 필수)
+### Kubernetes RBAC (L0, required)
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -74,18 +76,18 @@ rules:
     verbs: [get]
 ```
 
-서버 버전 조회(`/version`)는 인증된 모든 사용자에게 기본 허용(`system:public-info-viewer`)이라 별도 권한이 필요 없습니다.
-EKS access entry의 Kubernetes 그룹에 묶으려면: `kubectl create clusterrolebinding crossaz-reader --clusterrole=crossaz-reader --group=<group>`.
+Reading the server version (`/version`) is allowed for every authenticated user by default (`system:public-info-viewer`), so it needs no extra permission.
+To bind the role to a Kubernetes group of an EKS access entry: `kubectl create clusterrolebinding crossaz-reader --clusterrole=crossaz-reader --group=<group>`.
 
 ---
 
-## 설치
+## Install
 
 ```sh
 # Homebrew
 brew install --cask leegun2000/tap/crossaz
 
-# kubectl 플러그인 (krew-index 등록 후)
+# kubectl plugin (once listed in krew-index)
 kubectl krew install crossaz
 
 # Go
@@ -94,51 +96,56 @@ go install github.com/leegun2000/crossaz/cmd/crossaz@latest
 
 ---
 
-## 사용법
+## Usage
 
 ```
 crossaz scan    [flags]
 crossaz explain <ns/name | kind/ref> [flags]
+crossaz bill    [--days N] [flags]
 crossaz rules   [--rules file]
 crossaz version
 ```
 
-| 플래그 | 기본값 | 설명 |
+| Flag | Default | Description |
 |---|---|---|
-| `--kubeconfig` | `$KUBECONFIG` / `~/.kube/config` | kubeconfig 경로 |
-| `--context` | 현재 컨텍스트 | kubeconfig 컨텍스트 |
-| `--cluster` | 컨텍스트의 cluster (EKS ARN이면 `/` 뒤) | 출력에 쓸 클러스터 이름 |
-| `--region` | 노드 `topology.kubernetes.io/region` → AWS 설정 | 리전 |
-| `--rules` | 내장 [`rules/rules.yaml`](rules/rules.yaml) | 규칙 파일로 **통째로** 교체 |
-| `--rate-gb` | 규칙·리전 요율 | 모든 과금 경로의 USD/GB(양쪽 합산)를 강제 |
-| `--threshold` | `1` | (scan) 월 추정액이 이 값(USD) 미만인 과금 경로는 숨기고 개수만 표시 |
-| `--json` | | (scan) `ScanResult` 전체를 JSON으로 출력 |
-| `--prometheus-url` | | L2 볼륨 추정 (예: `http://localhost:9090`). basic auth 자격증명의 특수문자는 퍼센트 인코딩(`https://user:p%40ss@host`). 파싱할 수 없으면 `prometheus: base URL is invalid (percent-encode credentials)`로 실패하고, 어떤 오류·경고에도 사용자 이름·비밀번호를 남기지 않음 |
-| `--prom-window` | `7d` | 볼륨을 평균할 기간(PromQL 기간, 5분 `rate` 스텝보다 짧으면 오류). pod가 더 짧게 살았거나 Prometheus 보존기간이 더 짧으면 있는 구간만 평균 |
-| `--verify` | | (scan 전용) L3: 전월 Cost Explorer 실제 비용과 대조. L1(AWS 인벤토리)을 얻지 못하면(자격증명 없음, 다른 계정 자격증명 등) 호출하지 않고 경고 |
-| `--no-aws` | | L1 끄기 (Kubernetes만 사용) |
-| `--fixture <file>` | | 클러스터 대신 스냅샷 JSON을 입력으로 사용. `--prometheus-url`/`--verify`는 무시하고 경고 |
-| `--dump-fixture` | | (scan) 수집한 스냅샷을 익명화해 JSON으로 출력하고 종료 |
-| `--timeout` | `2m` | 전체 수집 제한 시간 |
+| `--kubeconfig` | `$KUBECONFIG` / `~/.kube/config` | Path to the kubeconfig |
+| `--context` | current context | kubeconfig context |
+| `--cluster` | the context's cluster (the part after `/` for an EKS ARN) | Cluster name used in the output |
+| `--region` | node label `topology.kubernetes.io/region`, then the AWS config | Region |
+| `--rules` | built-in [`rules/rules.yaml`](rules/rules.yaml) | **Replace** the rules with this file |
+| `--rate-gb` | rule or region rate | Force the USD/GB rate (both sides combined) of every billable path |
+| `--days` | `14` | (bill only) Number of closed UTC days to read, 1–90. Exit code 2 outside that range |
+| `--threshold` | `1` | (scan) Hide billable paths estimated below this many USD/month and show only their count |
+| `--json` | | (scan) the whole `ScanResult`; (bill) the `Bill` with region, accounts and metric, as JSON |
+| `--prometheus-url` | | L2 volume estimate (e.g. `http://localhost:9090`). Percent-encode special characters in basic-auth credentials (`https://user:p%40ss@host`). An unparsable URL fails with `prometheus: base URL is invalid (percent-encode credentials)`, and no error or warning ever includes the user name or password |
+| `--prom-selector` | | PromQL label matchers appended to every vector selector of the Prometheus queries (e.g. `'cluster="prod-a",job=~"kubelet\|cadvisor"'`, braces optional). Narrows a Prometheus that holds several clusters down to this one. Bad syntax (a missing comma, an unterminated string, a regex that does not compile, …) is reported with its position before any request is sent, with exit code 2 |
+| `--prom-window` | `7d` | Period over which volume is averaged (a PromQL duration; an error if shorter than the 5-minute `rate` step). Pods that lived less, or a Prometheus retention that is shorter, are averaged over what exists |
+| `--verify` | | (scan only) L3: compare with the Cost Explorer InterZone lines of the last 14 closed UTC days, scaled to 30 days. If L1 (the AWS inventory) is unavailable (no credentials, credentials for another account, …) it is skipped with a warning |
+| `--no-aws` | | Disable L1 (Kubernetes only) |
+| `--fixture <file>` | | Use a snapshot JSON instead of a cluster. `--prometheus-url` and `--verify` are ignored with a warning |
+| `--dump-fixture` | | (scan) Print the collected snapshot, anonymized, as JSON and exit |
+| `--timeout` | `2m` | Overall collection timeout |
 
 ```sh
-crossaz scan                                    # L0 + L1 (자격증명 있으면)
+crossaz scan                                    # L0 + L1 (when credentials exist)
 crossaz scan --prometheus-url http://localhost:9090 --verify
-crossaz explain payments/api                    # 판정 근거: facts, 매칭 규칙, 근거 URL, 조치 명령
-crossaz explain rds/orders-db                   # 서비스 밖 대상은 kind/ref
-crossaz rules                                   # 적용 중인 규칙 표
+crossaz scan --prometheus-url http://thanos:9090 --prom-selector 'cluster="prod-a"'   # Prometheus shared by several clusters
+crossaz explain payments/api                    # why: facts, matched rule, source URL, fix command
+crossaz explain rds/orders-db                   # targets outside the cluster use kind/ref
+crossaz bill --days 14                          # daily Cost Explorer bill waterfall (account and region)
+crossaz rules                                   # table of the rules in effect
 ```
 
-kubectl 플러그인으로도 같습니다. 플래그는 플러그인 이름 **뒤에** 둡니다.
+It works the same as a kubectl plugin. Put flags **after** the plugin name.
 
 ```sh
 kubectl -n monitoring port-forward svc/prometheus-server 9090:80 &
 kubectl crossaz scan --context prod-a --prometheus-url http://localhost:9090
 ```
 
-### 출력 예
+### Example output
 
-[`testdata/fixtures/prod-a.json`](testdata/fixtures/prod-a.json)(L0~L3 모두 있는 3 AZ 클러스터)으로 실행한 실제 출력입니다. 같은 내용이 골든 파일 [`testdata/golden/prod-a.txt`](testdata/golden/prod-a.txt)로 테스트됩니다.
+This is real output for [`testdata/fixtures/prod-a.json`](testdata/fixtures/prod-a.json), a 3-AZ cluster with all of L0 to L3. The same text is tested as the golden file [`testdata/golden/prod-a.txt`](testdata/golden/prod-a.txt).
 
 ```
 $ crossaz scan --fixture testdata/fixtures/prod-a.json
@@ -181,160 +188,184 @@ Run `crossaz explain payments/api` for rule details.
 
 VERIFY
   Estimated:  ~$183/mo
-  Actual:     $171/mo   (Cost Explorer APN2-DataTransfer-Regional-Bytes, 2026-08 — 계정·리전 전체)
-  Ratio:      1.07   제외 규칙이 대체로 맞음
+  Actual:     $165/mo   (Cost Explorer APN2-DataTransfer-Regional-Bytes InterZone, 2026-08-18..2026-08-31, 14 days, 1 day provisional (Estimated); whole account and region)
+  Ratio:      1.11   exclusion rules look broadly right
 
-  Ratio > 1.5 → 제외 규칙 누락 의심
-  Ratio < 0.5 → 클러스터 밖(RDS/MSK/NLB/다른 워크로드) 누수 의심
+  Ratio > 1.5 → suspect a missing exclusion rule
+  Ratio < 0.5 → suspect leaks outside the cluster (RDS/MSK/NLB/other workloads)
 
 WARNINGS
-  - 추정 총액에 볼륨을 측정하지 못한 과금 경로 2개가 빠져 있음
+  - the estimated total leaves out 2 billable path(s) whose volume could not be measured
 ```
 
-읽는 법:
+How to read it:
 
-- `cache/redis`: 엔드포인트가 3개 AZ 중 1개에만 있습니다. 나머지 두 AZ의 호출자는 항상 AZ를 넘으므로 **과금**이고, `trafficDistribution`만으로는 해결되지 않아 조치가 `topologySpread`입니다.
-- `shop/storefront`: ALB instance 타겟 + `externalTrafficPolicy: Cluster`. ALB→노드는 무료지만 kube-proxy가 다른 AZ pod로 한 번 더 보내는 홉이 과금됩니다.
-- `api/internal`: 같은 ALB instance 타겟이라도 `externalTrafficPolicy: Local`이면 홉이 없어 비과금(`high`)입니다.
-- `ingress/web`: ALB IP 타겟 모드는 비과금(`medium`)으로 판정하지만 요금 문구에 공백이 있어 `--verify` 대조를 권장합니다.
-- `orders/api`: 모든 엔드포인트에 같은 AZ 힌트가 있어(`trafficDistribution: PreferClose`) kube-proxy가 zone-local로 보냅니다. 비과금이어도 L2가 있으면 수신량을 보여줍니다.
-- `rds/orders-db`: 복제는 무료, 클라이언트 경로는 과금 규칙이지만 클러스터가 실제로 통신하는지·볼륨을 모르므로 `low`, 금액 `?`입니다.
-- `monitoring/node-exporter`: hostNetwork pod는 노드 전체 트래픽이 잡히므로 미측정으로 두고, 측정된 pod가 없어 `low`입니다.
-- `grpc/ledger-api`: cross-zone을 끈 내부 NLB. 클라이언트가 DNS로 다른 AZ의 NLB 노드를 받으면 과금되지만 DNS 라우팅에 좌우돼 `low`이므로 수신량만 보여주고 금액은 비웁니다.
-- `WARNINGS`의 "볼륨을 측정하지 못한 과금 경로 2개": `default/kubernetes`(pod 없는 엔드포인트)와 `monitoring/node-exporter`는 과금 규칙에 걸리지만 볼륨을 재지 못해 UNCERTAIN으로 갔고, 그만큼 총액이 빠졌다는 뜻입니다.
-- AZ SPREAD = `목적지 AZ 수/호출자 AZ 수`, 목적지 AZ가 2개 이상이고 고르게 퍼져 있으면 `even`.
-- L2가 없으면 금액은 `?`, 총액은 `Estimated total: ? (L2 없음 — --prometheus-url)`로 나옵니다([`testdata/golden/l0-only.txt`](testdata/golden/l0-only.txt)). 이 골든에는 EKS Auto Mode ALB(`marketing/site`, ip 타겟 기본), ingress-nginx가 pod IP로 직접 붙는 zone-local 서비스(`admin/console`, `ingress-direct-backend`), topology-mode Auto를 설정했지만 컨트롤러가 힌트를 보류해 kube-proxy가 전체로 분산하는 서비스(`notify/worker`, BILLABLE의 `hints-withheld`), 비사설 IPv4 ALB 타겟(`partners/webhook`, `lb-exemption-unverified`), 판정 보류(`edge/relay`, `unclassified`) 예도 있습니다. kube-proxy add-on이 1.30에 남은 클러스터에서 annotation 없는 `trafficDistribution`(`hints-unverified`)과 보류된 Auto 힌트(`hints-withheld`)는 [`testdata/golden/stale-proxy.json`](testdata/golden/stale-proxy.json)에 있습니다.
+- `cache/redis`: its endpoints are in only 1 of 3 AZs. Callers in the other two AZs always cross an AZ, so it is **billed**. `trafficDistribution` alone cannot fix that, so the fix is `topologySpread`.
+- `shop/storefront`: ALB instance targets with `externalTrafficPolicy: Cluster`. ALB to node is free, but kube-proxy's extra hop to a pod in another AZ is billed.
+- `api/internal`: the same ALB instance targets, but with `externalTrafficPolicy: Local` there is no hop, so it is not billed (`high`).
+- `ingress/web`: ALB IP target mode is judged not billed (`medium`), but the pricing wording has a gap, so cross-checking with `--verify` is recommended.
+- `orders/api`: every endpoint has a hint for its own AZ (`trafficDistribution: PreferClose`), so kube-proxy keeps traffic zone-local. Not billed, but with L2 the received volume is still shown.
+- `rds/orders-db`: replication is free; the client path matches a billing rule, but crossaz does not know whether the cluster really talks to it or how much, so it is `low` with amount `?`.
+- `monitoring/node-exporter`: a hostNetwork pod captures the whole node's traffic, so it is left unmeasured; with no measured pod it is `low`.
+- `grpc/ledger-api`: an internal NLB with cross-zone off. A client that gets another AZ's NLB node from DNS is billed, but that depends on DNS routing, so it is `low`: the received volume is shown and the amount is left blank.
+- The warning about "2 billable paths whose volume could not be measured": `default/kubernetes` (endpoints without pods) and `monitoring/node-exporter` match billing rules but their volume could not be measured, so they went to UNCERTAIN and their cost is missing from the total.
+- AZ SPREAD = `destination AZs/caller AZs`, with `even` when there are 2 or more destination AZs and endpoints are spread evenly.
+- Without L2 the amounts are `?` and the total reads `Estimated total: ? (no L2 — --prometheus-url)` ([`testdata/golden/l0-only.txt`](testdata/golden/l0-only.txt)). That golden also shows: an EKS Auto Mode ALB (`marketing/site`, ip targets by default); a zone-local service that ingress-nginx reaches directly by pod IP (`admin/console`, `ingress-direct-backend`); a service with topology-mode Auto whose controller withholds hints so kube-proxy spreads across all endpoints (`notify/worker`, `hints-withheld` under BILLABLE); a non-private IPv4 ALB target (`partners/webhook`, `lb-exemption-unverified`); and an undecided path (`edge/relay`, `unclassified`). For a cluster whose kube-proxy add-on is still 1.30, `trafficDistribution` without the annotation (`hints-unverified`) and withheld Auto hints (`hints-withheld`) are in [`testdata/golden/stale-proxy.json`](testdata/golden/stale-proxy.json).
 
-판정 근거는 `explain`으로 봅니다. 수집·분석 경고는 `crossaz: warning:`으로 stderr에 먼저 나옵니다(설명은 stdout).
+Use `explain` to see why. Collection and analysis warnings go to stderr first as `crossaz: warning:` (the explanation goes to stdout).
 
 ```
 $ crossaz explain cache/redis --fixture testdata/fixtures/prod-a.json
-crossaz: warning: 추정 총액에 볼륨을 측정하지 못한 과금 경로 2개가 빠져 있음
+crossaz: warning: the estimated total leaves out 2 billable path(s) whose volume could not be measured
 cache/redis  (service)
   route:       clusterip  (evidence: k8s)
   callers:     cluster/*  ap-northeast-2a=8 ap-northeast-2b=8 ap-northeast-2c=8
   destination: ap-northeast-2a=3
   facts:       az_spread=multi zone_coverage=partial kube_proxy_hints=true topology_hints=false hints_configured=false zone_local=false direct_ingress_backend=false same_vpc=true private_ip=true traffic=client
   rule:        clusterip-cross-az-partial  (billable: true, rule confidence: high)
-  reason:      엔드포인트가 없는 AZ의 호출자는 항상 다른 AZ로 넘어감 (trafficDistribution으로도 해결 안 됨)
+  reason:      Callers in an AZ without an endpoint always cross to another AZ (trafficDistribution cannot fix this)
   source:      https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-networking.html  (verified 2026-09-14)
   estimate:    recv 2.1 TB/mo × cross-AZ 0.667 × $0.02/GB = ~$28
   confidence:  medium
-  fix:         topologySpread — 모든 AZ에 엔드포인트가 생기도록 topologySpreadConstraints(topology.kubernetes.io/zone) 추가 후 trafficDistribution 설정
+  fix:         topologySpread — Add topologySpreadConstraints (topology.kubernetes.io/zone) so every AZ gets an endpoint, then set trafficDistribution
 ```
 
-단일 AZ이고 과금 경로가 없으면 두 줄로 끝납니다.
+A single-AZ cluster with no billable or undecided path ends in two lines:
 
 ```
-Cluster: dev-b   AZs: 1   Nodes: 3
-Exposure: NONE — 모든 노드가 단일 AZ에 있고 과금 경로가 없습니다.
+Cluster: dev   AZs: 1   Nodes: 3
+Exposure: NONE — all nodes are in a single AZ and there is no billable path.
 ```
+
+`bill` shows the daily Cost Explorer bill by family and direction, narrowed to the accounts that own the node instances (L1, the OwnerId from `ec2:DescribeInstances`) and the region ([`testdata/golden/bill.txt`](testdata/golden/bill.txt)).
+
+```
+$ crossaz bill
+Region: us-east-1   Accounts: 111122223333   Window: 2026-08-31..2026-09-13 (UTC, 14 days)   Metric: UnblendedCost
+
+WATERFALL
+FAMILY      SIDE   USD      GB        $/GB
+interzone   In     $14.00   1400.00   0.0100
+interzone   Out    $14.00   1400.00   0.0100
+publicip    Out    $7.00    700.00    0.0100
+other       ?      $0.25    25.00     0.0100
+TOTAL              $35.25   3525.00   0.0100
+xaz-free    In     $0.00    420.00    0.0000
+xaz-free is $0 (PrivateLink/TGW/Client VPN) and left out of TOTAL
+Not final (Estimated) days: 2026-09-13; amounts may still change (included in TOTAL)
+```
+
+- Scope: lines whose usage type ends in `DataTransfer-Regional-Bytes`, split by operation into `interzone`, `publicip` and `lb-publicip` (an unknown operation goes to `other` with a warning); `VpcPeering-In/Out-Bytes` (`vpcpeering`); and the $0 `DataTransfer-xAZ-In/Out-Bytes` (`xaz-free`, left out of TOTAL).
+- Cost Explorer accepts at most two GroupBy keys (USAGE_TYPE, OPERATION), so lines are not split by account. A line's `account` is filled only when there is a single account.
+- Without L1, the query is filtered by region only, with a warning. But if L1 runs and finds no VPC for the nodes (credentials for another account or region), crossaz does not query and exits with code 1. `AccessDenied`, `DataUnavailable` and an empty result show as "bill: unknown", never `$0`.
 
 ---
 
-## 레이어
+## Layers
 
-각 레이어는 독립적으로 동작하고, 상위 레이어 없이도 결과를 냅니다.
+Each layer works on its own and gives a result without the layers above it.
 
-| 레이어 | 필요한 것 | 산출 | 조건 |
+| Layer | Needs | Produces | When |
 |---|---|---|---|
-| **L0 토폴로지** | Kubernetes API (위 ClusterRole) | 노드 AZ 분포, 서비스 라우트(ALB Ingress·LB annotation·ClusterIP·headless), EndpointSlice AZ 분포·힌트, 과금 판정 | 항상 |
-| **L1 AWS 확인** | AWS 자격증명 + 위 IAM 정책 | LB 실제 scheme·cross-zone·target type·AZ, zone 없는 엔드포인트 IP→AZ(클러스터 VPC의 ENI만), RDS/ElastiCache/MSK 경로 | 자격증명이 있고 `--no-aws`가 아닐 때. 일부 LB 조회 실패는 그 LB만 빼고(annotation 근거로 폴백) 경고 |
-| **L2 볼륨 추정** | Prometheus (cAdvisor `container_network_receive_bytes_total`) | 월 수신 바이트 → 금액 | `--prometheus-url`. 결과에 이 클러스터의 엔드포인트 pod가 하나도 없으면(다른 클러스터, cAdvisor 누락, Prometheus가 수집한 지 10분 미만) L2 없음으로 처리하고 경고 |
-| **L3 자가 검증** | `ce:GetCostAndUsage` | 추정 대비 실제 비율 | `--verify` + L1 |
-| L4 실측 | VPC Flow Logs | 정밀 금액 | v1 범위 밖 |
+| **L0 topology** | Kubernetes API (the ClusterRole above) | Node AZ spread, service routes (ALB Ingress, LB annotations, ClusterIP, headless), EndpointSlice AZ spread and hints, billing verdicts | Always |
+| **L1 AWS check** | AWS credentials + the IAM policy above | Actual LB scheme, cross-zone, target type and AZs; AZ of endpoint IPs without a zone (ENIs in the cluster VPC only); RDS/ElastiCache/MSK paths | When credentials exist and `--no-aws` is not set. If some LB lookups fail, only those LBs are dropped (falling back to annotations) with a warning |
+| **L2 volume estimate** | Prometheus (cAdvisor `container_network_receive_bytes_total`) | Monthly received bytes → cost | `--prometheus-url` (plus optional `--prom-selector`). If the result contains no endpoint pod of this cluster (another cluster, missing cAdvisor, Prometheus scraping for under 10 minutes, a `--prom-selector` that matches nothing), L2 is treated as absent with a warning |
+| **L3 bill** | `ce:GetCostAndUsage` | Daily bill waterfall (`bill`), estimate vs. actual ratio (`--verify`) | `bill`, or `--verify` with L1 |
+| L4 measured | VPC Flow Logs | Exact cost | Out of scope for v1 |
 
-### CONF와 섹션
+### CONF and sections
 
-- **CONF = min(규칙, 근거, 볼륨)**
-  - 규칙: 매칭된 규칙의 `confidence`
-  - 근거: `k8s`(ClusterIP·headless)·`aws`(L1로 확인) → high, `annotation`(L1 없이 annotation·기본값으로 추정) → medium
-  - 볼륨: L2 추정이 들어가면 최대 medium. 엔드포인트 pod 메트릭이 하나도 없으면 low, 금액 `?`
-  - 클러스터 밖 대상(RDS/ElastiCache/MSK)이 과금 경로면 low, 금액 `?`
-  - 과금 경로의 엔드포인트 AZ를 하나도 모르면 L2 유무와 무관하게 low, 금액 `?`
-  - Local/Wavelength Zone에 닿는 과금 경로는 요율이 달라 low, 금액 `?`(수신량은 표시)
-- **섹션**
-  - `UNCERTAIN`: CONF가 low인 경로 (과금 여부와 무관)
-  - `NOT BILLABLE`: 비과금이고 low가 아닌 경로
-  - `BILLABLE`: 나머지. 금액이 알려졌고 `--threshold` 미만이면 숨기고 개수만 표시(총액에는 포함)
-  - 금액 내림차순(모르는 금액은 뒤), 나머지 섹션은 키 순. 비어 있는 섹션은 생략
+- **CONF = min(rule, evidence, volume)**
+  - Rule: the matched rule's `confidence`.
+  - Evidence: `k8s` (ClusterIP, headless) and `aws` (confirmed by L1) → high; `annotation` (inferred from annotations or defaults without L1) → medium.
+  - Volume: at most medium once the L2 estimate is used. With no metrics for any endpoint pod: low, amount `?`.
+  - A billable path to a target outside the cluster (RDS/ElastiCache/MSK) is low, amount `?`.
+  - A billable path whose endpoint AZs are all unknown is low with amount `?`, with or without L2.
+  - A billable path that touches a Local or Wavelength Zone is low with amount `?` because the rate differs (received volume is still shown).
+- **Sections**
+  - `UNCERTAIN`: paths whose CONF is low, or whose billing is undecided (`billable: unknown`).
+  - `NOT BILLABLE`: paths that are not billed and not low.
+  - `BILLABLE`: the rest. Paths with a known amount below `--threshold` are hidden and only counted (they stay in the total).
+  - Sorted by amount, descending (unknown amounts last); the other sections are sorted by key. Empty sections are omitted.
 - **Exposure**
-  - `LIKELY`: BILLABLE 경로가 있음(숨김 포함), 또는 규칙은 확실한데 추정 단계에서 UNCERTAIN으로 내려간 서비스 과금 경로가 있음(메트릭 없음·AZ 모름·Local Zone)
-  - `NONE`: 노드 AZ가 1개 이하이고 UNCERTAIN에도 과금 경로가 없음
-  - `UNLIKELY`: 그 외
-- **Estimated total**: L2가 있을 때 BILLABLE 경로(숨김 포함)의 알려진 금액 합. 위처럼 내려간 서비스 과금 경로 중 볼륨을 못 잰 것이 있으면 `WARNINGS`에 "추정 총액에 볼륨을 측정하지 못한 과금 경로 N개가 빠져 있음"
+  - `LIKELY`: there is a BILLABLE path (hidden ones included), or a service path whose rule is certain but which dropped to UNCERTAIN during estimation (no metrics, unknown AZ, Local Zone).
+  - `NONE`: at most one node AZ, and nothing billable or undecided in UNCERTAIN either (there can still be destinations in other AZs, such as the EKS control-plane ENIs).
+  - `UNLIKELY`: everything else.
+- **Estimated total**: with L2, the sum of known amounts of BILLABLE paths (hidden ones included). If a service path dropped as above had no measurable volume, `WARNINGS` says that N billable paths are missing from the total.
+- **Undecided**: `billable: unknown` paths are counted neither as $0 (not billed) nor in the total. They get their own line under `Estimated total`, `Unconfirmed: $0–$X/mo`, where X is the upper bound if they were billed (all received volume × the path's rate), or `?` if any of them has no measured volume. In JSON this is `unconfirmedMaxUsd`.
 
 ---
 
-## 판정 규칙
+## Rules
 
-과금 사실과 근거는 [`docs/billing-rules.md`](docs/billing-rules.md), 적용 중인 규칙 원본은 [`rules/rules.yaml`](rules/rules.yaml)입니다.
+The billing facts and their sources are in [`docs/billing-rules.md`](docs/billing-rules.md) (Korean); the rules in effect are in [`rules/rules.yaml`](rules/rules.yaml).
 
-규칙은 **선언 순서대로 평가하고 첫 매치가 이깁니다.** 마지막 규칙은 조건이 비어 있는 catch-all이어야 합니다.
+Rules are **evaluated in order, and the first match wins.** The last rule must be a catch-all with an empty match.
 
-| 규칙 ID | 판정 | 규칙 CONF | 요율 | 조치 |
+| Rule ID | Verdict | Rule CONF | Rate | Fix |
 |---|---|---|---|---|
-| `same-az` | 비과금 | high | 리전 | |
-| `zone-unknown` | 비과금 | low | 리전 | |
-| `nlb-cross-zone` | **과금** | high | 리전 | `disable-nlb-xz` |
-| `nodeport-hop-cross-az` (ALB/CLB/NLB instance 타겟 + `externalTrafficPolicy: Cluster`, zone-local 아님) | **과금** | medium | 리전 | `PreferClose` |
-| `nlb-cross-zone-unknown` | **과금** | low | 리전 | |
-| `ingress-direct-backend` (zone-local ClusterIP인데 ALB가 아닌 Ingress가 pod IP로 직접 연결) | 비과금 | low | 리전 | |
-| `topology-aware-routing` (clusterip/alb/clb) | 비과금 | medium | 리전 | |
-| `alb-ip-target-mode` | 비과금 | medium | 리전 | |
-| `alb-private-same-vpc`, `clb-private-same-vpc` | 비과금 | high | 리전 | |
-| `lb-exemption-unverified` (IPv6·비사설 IPv4 타겟, 다른 VPC) | **과금** | low | 리전 | |
-| `nlb-client-cross-az` | **과금** | low | 리전 | `zonal-dns` |
-| `nlb-zonal-internet` | 비과금 | medium | 리전 | |
-| `clusterip-cross-az-partial` | **과금** | high | 리전 | `topologySpread` |
-| `hints-unverified` (trafficDistribution/topology-mode 설정, kube-proxy가 이 서비스의 힌트를 쓰는지 미확인: 버전 모름·대체 프록시·annotation 없는 1.30 이하. 엔드포인트가 모든 AZ에 있을 때만 — 없는 AZ가 있으면 위 규칙이 먼저 과금 확정) | **과금** | low | 리전 | |
-| `hints-withheld` (힌트를 쓰는 kube-proxy인데 EndpointSlice에 힌트가 없음: topology-mode Auto가 엔드포인트 부족·과부하 기준으로 보류 등 → 모든 엔드포인트로 분산) | **과금** | high | 리전 | `PreferClose` (annotation 제거 후 설정) |
-| `clusterip-cross-az` | **과금** | high | 리전 | `PreferClose` |
-| `headless-cross-az` | **과금** | high | 리전 | `relocate` |
-| `rds-multiaz-replication`, `msk-inter-broker` | 비과금 | high | 리전 | |
-| `rds-cross-az`, `elasticache-cross-az` (EC2 쪽만) | **과금** | high (최종 low) | $0.01 | `relocate` |
-| `msk-client-cross-az` (공식 확인된 클라이언트 쪽만 — 하한) | **과금** | medium (최종 low) | $0.01 | `relocate` |
-| `unclassified` (catch-all) | 비과금 | low | 리전 | |
+| `same-az` | not billed | high | region | |
+| `zone-unknown` | undecided | low | region | |
+| `nlb-cross-zone` | **billed** | high | region | `disable-nlb-xz` |
+| `nodeport-hop-cross-az` (ALB/CLB/NLB instance targets + `externalTrafficPolicy: Cluster`, not zone-local) | **billed** | medium | region | `PreferClose` |
+| `nlb-cross-zone-unknown` | **billed** | low | region | |
+| `ingress-direct-backend` (a zone-local ClusterIP that a non-ALB Ingress reaches directly by pod IP) | not billed | low | region | |
+| `topology-aware-routing` (clusterip/alb/clb) | not billed | medium | region | |
+| `alb-ip-target-mode` | not billed | medium | region | |
+| `alb-private-same-vpc`, `clb-private-same-vpc` | not billed | high | region | |
+| `lb-exemption-unverified` (IPv6 or non-private IPv4 targets, another VPC) | **billed** | low | region | |
+| `nlb-client-cross-az` | **billed** | low | region | `zonal-dns` |
+| `nlb-zonal-internet` | not billed | medium | region | |
+| `clusterip-cross-az-partial` | **billed** | high | region | `topologySpread` |
+| `hints-unverified` (trafficDistribution/topology-mode is set, but it is unconfirmed whether kube-proxy uses this service's hints: unknown version, a replacement proxy, or 1.30 or older without the annotation. Only when endpoints are in every AZ; if an AZ has none, the rule above already decides "billed") | **billed** | low | region | |
+| `hints-withheld` (a hint-aware kube-proxy, but the EndpointSlice has no hints, e.g. topology-mode Auto withheld them for too few endpoints or overload, so traffic spreads to all endpoints) | **billed** | high | region | `PreferClose` (after removing the annotation) |
+| `clusterip-cross-az` | **billed** | high | region | `PreferClose` |
+| `headless-cross-az` | **billed** | high | region | `relocate` |
+| `rds-multiaz-replication`, `msk-inter-broker` | not billed | high | region | |
+| `rds-cross-az`, `elasticache-cross-az` (EC2 side only) | **billed** | high (final low) | $0.01 | `relocate` |
+| `msk-client-cross-az` (only the officially confirmed client side, a lower bound) | **billed** | medium (final low) | $0.01 | `relocate` |
+| `unclassified` (catch-all) | undecided | low | region | |
 
-- 요율 `리전` = 규칙에 `rate_gb`가 없어 리전 요율을 씁니다(내장 36개 리전 모두 $0.02/GB, 양쪽 합산). 비과금 규칙에는 적용되지 않습니다.
-- EKS Auto Mode: IngressClass controller `eks.amazonaws.com/alb`인 ALB와 `loadBalancerClass: eks.amazonaws.com/nlb`인 NLB는 target-type annotation이 없으면 ip 타겟으로 봅니다. ALB 판정은 셀프 관리 LBC(`ingress.k8s.aws/alb`)와 Auto Mode 컨트롤러를 모두 인식하고, IngressClass 이름이 아니라 controller로 가립니다(`alb`라는 이름은 그 IngressClass 객체가 없을 때만 ALB로 봄).
-- `PreferClose` 조치 명령은 컨트롤 플레인이 1.34 이상이면 같은 의미의 `PreferSameZone`으로 렌더링됩니다.
-- VPC 인터페이스 엔드포인트의 AZ 간 전송은 2022-04-01부터 무료라 판정 대상이 아닙니다.
+- Rate `region` means the rule has no `rate_gb`, so the region rate is used (all 36 built-in regions are $0.02/GB, both sides combined). It does not apply to rules that are not billed.
+- `billable` takes three values: `true`, `false` and `unknown`. In JSON output they are strings (`"true"`, `"false"`, `"unknown"`).
+- EKS Auto Mode: an ALB whose IngressClass controller is `eks.amazonaws.com/alb`, and an NLB with `loadBalancerClass: eks.amazonaws.com/nlb`, are treated as ip targets when there is no target-type annotation. ALB detection recognizes both the self-managed LBC (`ingress.k8s.aws/alb`) and the Auto Mode controller, and goes by the controller, not the IngressClass name (a class named `alb` counts as ALB only when no such IngressClass object exists).
+- The `PreferClose` fix command is rendered as the equivalent `PreferSameZone` when the control plane is 1.34 or later.
+- Cross-AZ traffic to VPC interface endpoints has been free since 2022-04-01, so it is not evaluated.
 
-### 규칙 바꾸기
+### Changing the rules
 
 ```sh
-cp rules/rules.yaml my-rules.yaml               # 원본에서 시작
-crossaz rules --rules my-rules.yaml             # 검증 + 규칙 표 확인
+cp rules/rules.yaml my-rules.yaml               # start from the original
+crossaz rules --rules my-rules.yaml             # validate and print the rule table
 crossaz scan --rules my-rules.yaml
 ```
 
-`--rules` 파일은 내장 규칙과 병합하지 않고 **통째로 대체**합니다. 로드 시 검증합니다: id 유일, `confidence` ∈ {high, medium, low}, 마지막 규칙이 catch-all, `default_rate_gb > 0`, 조치 명령 템플릿 파싱 가능, match 값이 사실이 가질 수 있는 값([`rules.yaml`](rules/rules.yaml) 머리 주석의 목록, 대소문자 구분). 표에 표시용으로 줄여 쓴 `nlb-xz` 같은 값은 거부됩니다.
+A `--rules` file **replaces** the built-in rules entirely; it is not merged. It is validated on load: unique ids, `confidence` ∈ {high, medium, low}, a `billable` value of true, false or "unknown", a catch-all last rule, `default_rate_gb > 0`, fix command templates that parse, and match values that the facts can actually take (listed in the header comment of [`rules.yaml`](rules/rules.yaml), case-sensitive). Abbreviations used only for display, such as `nlb-xz`, are rejected.
 
 ---
 
-## 추정 방식
+## How the estimate works
 
 ```
-recv_bytes/mo = Σ (엔드포인트 pod 수신 bytes/s ÷ 그 pod가 속한 서비스 수)
-                × (전체 pod 수 / 측정된 pod 수) × 2,592,000        # 30일
-월 비용       = recv_bytes/mo / 1e9 × CrossAZFraction × rate_gb
+recv_bytes/mo = Σ (endpoint pod received bytes/s ÷ number of services that pod belongs to)
+                × (all pods / measured pods) × 2,592,000        # 30 days
+monthly cost  = recv_bytes/mo / 1e9 × CrossAZFraction × rate_gb
 ```
 
-**`× 2`는 없습니다.** `rate_gb: 0.02`가 이미 양쪽($0.01/GB씩)을 합친 값입니다. 상용·GovCloud 36개 리전의 inter-AZ 요율은 모두 측당 $0.01입니다.
+**There is no `× 2`.** `rate_gb: 0.02` already combines both sides ($0.01/GB each). The inter-AZ rate is $0.01 per side in all 36 commercial and GovCloud regions.
 
 ```
-CrossAZFraction = 1 − Σ_z (1 / 호출자 AZ 수) × 목적지 비중(z)
+CrossAZFraction = 1 − Σ_z (1 / caller AZ count) × destination share(z)
 ```
 
-- 호출자 3 AZ, 엔드포인트 3 AZ 균등 → `1 − 1/3 = 0.667`
-- 호출자 3 AZ, 엔드포인트가 한 AZ에만 → 역시 `0.667` (0이 아님: 다른 두 AZ 호출자는 전부 넘어감)
-- `zone_local`(힌트가 모든 호출자 AZ를 덮음, 또는 `internalTrafficPolicy: Local`) → `0`. AZ를 넘는 다리가 kube-proxy 홉뿐인 `clusterip`·`alb`·`clb`·`nlb-zonal` 경로에만 적용
-- 힌트는 있지만 일부 호출자 AZ를 못 덮음 → `엔드포인트 없는 호출자 AZ 수 / 호출자 AZ 수` (위 경로에만)
-- `nlb-cross-zone`·`nlb`·headless·외부 대상은 힌트와 무관하게 위 기본 식. 힌트는 LB 노드 → 타겟 다리를 없애지 못합니다
-- 호출자 분포: ClusterIP/headless는 노드 AZ, LB 라우트는 LB AZ(L1) 또는 노드 AZ
+- Callers in 3 AZs, endpoints spread evenly across 3 AZs → `1 − 1/3 = 0.667`.
+- Callers in 3 AZs, endpoints in a single AZ → also `0.667` (not 0: callers in the other two AZs always cross).
+- `zone_local` (hints cover every caller AZ, or `internalTrafficPolicy: Local`) → `0`. This applies only to `clusterip`, `alb`, `clb` and `nlb-zonal` paths, where the kube-proxy hop is the only leg that can cross an AZ.
+- Hints exist but do not cover some caller AZs → `caller AZs without an endpoint / caller AZs` (same paths only).
+- `nlb-cross-zone`, `nlb`, headless and external targets use the base formula regardless of hints; hints cannot remove the LB-node-to-target leg.
+- Caller spread: node AZs for ClusterIP/headless; for LB routes, the LB's AZs (L1) or the node AZs.
 
-Prometheus 쿼리 (`WINDOW` = `--prom-window`, 기본 `7d`):
+Prometheus query (`WINDOW` = `--prom-window`, default `7d`):
 
 ```promql
 sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) (
@@ -343,73 +374,73 @@ sum by (namespace, pod) (avg_over_time((max by (namespace, pod, interface) (
 ))[WINDOW:5m]))
 ```
 
-- 5분마다 5분 `rate`를 구해 **pod가 존재한 구간만** 평균합니다. `rate(x[7d])`는 증가량을 7일로 나누므로 14분 된 pod를 약 1/700로 줄였습니다(롤링 배포 직후 모든 경로가 `--threshold` 아래로 숨음). 보존기간이 `WINDOW`보다 짧아도 같은 이유로 평균이 줄지 않습니다.
-- `and … offset 5m`은 5분 전에도 샘플이 있던 스텝만 남겨, 막 뜬 pod의 반쪽 스텝이 평균을 끌어내리지 않게 합니다. 그래서 5~10분이 안 된 pod는 미측정이고, 같은 서비스의 측정된 pod로 외삽합니다(`k/n pods measured`).
-- `max by (…, interface)`는 런타임에 따라 컨테이너별로 중복되는 시계열을 제거합니다. 현재 ready 엔드포인트 pod만 매칭하므로 롤링 배포로 사라진 pod의 트래픽은 빠집니다.
-- 서브쿼리라 Prometheus 부하가 `WINDOW`/5분 스텝 수(7d = 2016)에 비례합니다. pod가 아주 많아 `query.max-samples`나 타임아웃에 걸리면 `--prom-window`를 줄이세요. `rate[5m]`에는 스크레이프 간격이 2분 30초 이하여야 합니다.
+- A 5-minute `rate` is taken every 5 minutes and averaged **only over the time the pod existed**. `rate(x[7d])` divides the increase by 7 days, which shrank a 14-minute-old pod by about 700× (every path dropped below `--threshold` right after a rolling deploy). For the same reason, a retention shorter than `WINDOW` does not drag the average down.
+- `and … offset 5m` keeps only steps that already had a sample 5 minutes earlier, so the half-step of a newly started pod does not pull the average down. Pods younger than 5–10 minutes are therefore unmeasured and extrapolated from the measured pods of the same service (`k/n pods measured`).
+- `max by (…, interface)` removes series duplicated per container by some runtimes. Only currently ready endpoint pods match, so traffic of pods removed by a rolling deploy is not counted.
+- Because it is a subquery, the Prometheus load is proportional to the number of 5-minute steps in `WINDOW` (2016 for 7d). If a very large number of pods hits `query.max-samples` or a timeout, shorten `--prom-window`. `rate[5m]` needs a scrape interval of 2m30s or less.
 
-가정:
+Assumptions:
 
-1. 호출자는 노드(또는 LB) AZ에 **균등** 분포하고, 요청은 엔드포인트 수에 비례해 분배된다.
-2. 수신 바이트만 센다. 모든 바이트는 누군가 한 번 수신하므로 총합은 맞지만, 응답 바이트는 호출자 서비스로 귀속된다.
-3. hostNetwork pod(노드 전체 트래픽이 잡힘)와 메트릭 없는 pod는 미측정으로 두고, 측정된 pod 비율로 외삽한다(`k/n pods measured`).
-4. 수신 바이트에는 클러스터 밖 유입이 섞인다. ALB 뒤 경로처럼 무료인 경우는 규칙이 비과금으로 걸러낸다.
+1. Callers are spread **evenly** across node (or LB) AZs, and requests are distributed in proportion to the number of endpoints.
+2. Only received bytes are counted. Every byte is received by someone exactly once, so the total is right, but response bytes are attributed to the calling service.
+3. hostNetwork pods (which capture the whole node's traffic) and pods without metrics are left unmeasured and extrapolated from the share of measured pods (`k/n pods measured`).
+4. Received bytes include traffic from outside the cluster. Where that is free, such as behind an ALB, the rules filter it out as not billed.
 
-목적은 자릿수 판별입니다. $0.06과 $800을 구분하면 충분합니다.
-
----
-
-## 한계
-
-- **추정치이며 실측이 아닙니다.** `--verify`로 교차 확인을 권장합니다.
-- 클러스터 밖에서 시작하는 트래픽(다른 워크로드·EC2·Lambda 등)은 범위 밖입니다. RDS/ElastiCache/MSK는 경로와 AZ 분포만 보고, 클러스터와 실제 통신하는지·볼륨은 모르므로 `low`, 금액 `?`입니다.
-- **AWS VPC CNI + kube-proxy**를 전제합니다. Cilium kube-proxy replacement, EKS Auto Mode의 힌트 동작은 미검증이라 kube-proxy DaemonSet이 없으면(또는 `get daemonsets/kube-proxy` 권한이 없으면) zone-local을 인정하지 않습니다. `trafficDistribution`/`topology-mode`를 설정한 서비스는 `hints-unverified`(과금 가능, low)로, 설정하지 않은 서비스는 과금으로 판정합니다. kube-proxy가 힌트를 쓰는 버전으로 확인됐는데 EndpointSlice에 힌트가 없으면(topology-mode Auto의 보류 등) kube-proxy가 전체로 분산하므로 `hints-withheld`(과금, high)입니다. 실측이 필요하면 [kubezonnet](https://github.com/polarsignals/kubezonnet)을 권장합니다.
-- pod IP로 직접 연결하는 Ingress 컨트롤러(ingress-nginx 기본값 등)는 kube-proxy 힌트를 우회합니다. 그런 Ingress가 가리키는 zone-local 서비스는 `ingress-direct-backend`(low)로 두며, 컨트롤러 자체의 zone-aware 설정은 읽지 않습니다. `nginx.ingress.kubernetes.io/service-upstream: "true"`면 ClusterIP를 거치므로 zone-local을 인정합니다.
-- ALB IP 타겟 모드는 EKS Best Practices를 근거로 비과금(`medium`)으로 판정하지만, EC2 요금 문구가 "EC2 인스턴스"만 명시하므로 여전히 `--verify` 대조 가치가 있습니다.
-- 호출자 AZ 분포를 균등으로 가정합니다. 호출자가 한 AZ에 몰린 워크로드에서는 오차가 커집니다.
-- 요율은 상용·GovCloud 36개 리전만 내장합니다. 그 외(중국 리전 등)는 기본값과 경고가 나오므로 `--rate-gb`로 지정하세요. Local/Wavelength Zone 노드가 있으면 경고하고, 그 zone에 닿는 과금 경로는 요율이 달라 금액을 비워 UNCERTAIN으로 보냅니다(총액 제외, 수신량은 표시).
-- 공인 IP 헤어핀(pod가 internet-facing LB 호스트명을 호출)은 AZ와 무관하게 과금되지만 Flow Logs 없이는 탐지할 수 없습니다.
-- 서비스당 경로는 1개입니다. ALB Ingress가 가리키는 서비스는 `alb`, type=LoadBalancer 서비스는 NLB/CLB 경로로만 판정하며, 같은 서비스로 들어오는 클러스터 내부 ClusterIP 트래픽은 분리하지 않습니다(수신량에는 포함).
-- ALB Ingress 백엔드는 일반 서비스 백엔드와 `use-annotation` 액션(`alb.ingress.kubernetes.io/actions.<name>`의 `forwardConfig.targetGroups[].serviceName`, 레거시 `serviceName`)을 인식합니다. 가중치 forward·blue/green·Argo Rollouts canary가 여기에 해당합니다. 액션 JSON이 깨졌거나 타겟그룹 ARN만 있으면 서비스를 연결하지 못합니다.
-- 노드가 한 AZ에만 있고 ALB/CLB/cross-zone off NLB가 여러 AZ에 걸쳐 있어도 `same-az`로 봅니다. ALB/CLB → 노드는 무료이고 zonal NLB는 타겟 없는 AZ를 DNS에서 빼기 때문입니다. cross-zone이 켜졌거나 모르는 NLB만 L1에서 확인한 LB AZ를 호출자에 합칩니다(L1이 없으면 LB AZ를 모르므로 노드 AZ 기준).
-- `--verify`의 Actual은 **계정·리전 전체**의 inter-AZ 전송 비용(`DataTransfer-Regional-Bytes`)입니다. ELB·공인 IP·다른 클러스터·EC2가 모두 포함된 상한이므로 Ratio가 1보다 작게 나오는 것이 자연스럽습니다. L1이 없으면(자격증명 없음, 노드를 찾지 못한 다른 계정 자격증명 등) 다른 계정의 비율을 보여주지 않도록 L3를 건너뜁니다.
-- Prometheus 쿼리에 cluster 라벨 범위가 없습니다. 여러 클러스터를 담은 Prometheus(Thanos, AMP 등)면 같은 `namespace/pod` 이름이 다른 클러스터 값과 섞일 수 있습니다. 이 클러스터 pod가 결과에 **하나도** 없을 때만 경고하고 L2를 버리므로, 일부만 겹치는 혼입은 잡지 못합니다. 클러스터 하나로 범위가 좁혀진 엔드포인트를 쓰세요.
-- 응답 바이트는 호출자 서비스의 수신으로 귀속됩니다.
-- VPC CNI prefix delegation 환경에서 zone 없는 엔드포인트 IP는 ENI 조회로 AZ를 못 찾을 수 있음 (pod IP가 ENI의 개별 IP가 아니라 위임된 prefix 안에 있어 `addresses.private-ip-address` 필터에 걸리지 않음). EndpointSlice에 zone이 있는 엔드포인트(대부분)는 영향이 없습니다. ENI 조회는 클러스터 VPC 안으로 한정하고, ENI들이 서로 다른 AZ를 보고하는 IP는 AZ 모름으로 둡니다.
+The goal is the order of magnitude: telling $0.06 from $800 is enough.
 
 ---
 
-## 개발
+## Limitations
+
+- **These are estimates, not measurements.** Cross-checking with `--verify` is recommended.
+- Traffic that starts outside the cluster (other workloads, EC2, Lambda, …) is out of scope. For RDS/ElastiCache/MSK, crossaz sees only the path and the AZ spread; it does not know whether the cluster really talks to them or how much, so they are `low` with amount `?`.
+- It assumes **AWS VPC CNI + kube-proxy**. Hint behavior under Cilium's kube-proxy replacement and EKS Auto Mode is unverified, so without the kube-proxy DaemonSet (or without permission to `get daemonsets/kube-proxy`) zone-local routing is not credited. Services with `trafficDistribution`/`topology-mode` set become `hints-unverified` (possibly billed, low); services without them are judged billed. If kube-proxy is confirmed to be a hint-aware version but the EndpointSlice has no hints (e.g. topology-mode Auto withheld them), kube-proxy spreads across all endpoints, so the verdict is `hints-withheld` (billed, high). For measured numbers, [kubezonnet](https://github.com/polarsignals/kubezonnet) is recommended.
+- Ingress controllers that connect directly to pod IPs (the ingress-nginx default, for example) bypass kube-proxy hints. A zone-local service behind such an Ingress is left as `ingress-direct-backend` (low), and the controller's own zone-aware settings are not read. With `nginx.ingress.kubernetes.io/service-upstream: "true"` traffic goes through the ClusterIP, so zone-local is credited.
+- ALB IP target mode is judged not billed (`medium`) based on the EKS Best Practices guide, but the EC2 pricing wording names only "EC2 instances", so a `--verify` cross-check is still worthwhile.
+- Caller spread across AZs is assumed even. For workloads whose callers are concentrated in one AZ, the error grows.
+- Rates are built in only for the 36 commercial and GovCloud regions. Elsewhere (China regions, for example) a default is used with a warning, so set `--rate-gb`. If there are Local or Wavelength Zone nodes, crossaz warns, and billable paths touching those zones have a different rate, so their amount is left blank and they go to UNCERTAIN (left out of the total, received volume shown).
+- Public-IP hairpins (a pod calling an internet-facing LB hostname) are billed regardless of AZ, but cannot be detected without Flow Logs.
+- One path per service. A service behind an ALB Ingress is judged only as `alb`, and a type=LoadBalancer service only as its NLB/CLB path; in-cluster ClusterIP traffic to the same service is not separated (it is included in the received volume).
+- ALB Ingress backends are recognized both as plain service backends and through `use-annotation` actions (`forwardConfig.targetGroups[].serviceName` in `alb.ingress.kubernetes.io/actions.<name>`, or the legacy `serviceName`). Weighted forwards, blue/green and Argo Rollouts canaries fall in this case. If the action JSON is broken or has only target group ARNs, the service cannot be linked.
+- If nodes are in a single AZ but an ALB, CLB or cross-zone-off NLB spans several AZs, the path is still `same-az`: ALB/CLB to node is free, and a zonal NLB removes AZs without targets from DNS. Only an NLB with cross-zone on or unknown adds the LB AZs confirmed by L1 to the callers (without L1 the LB AZs are unknown, so node AZs are used).
+- `--verify`'s Actual covers the **whole account and region**: the `InterZone-In/Out` operation lines among `DataTransfer-Regional-Bytes` (PublicIP, LB-PublicIP, VPC peering and the $0 xAZ lines are left out). `Estimated` days are included and scaled to 30 days, and their count is shown as "N days provisional (Estimated)", because Cost Explorer keeps every day Estimated until the month closes. Inter-AZ traffic of other clusters, EC2 and ELB is all included, so this is an upper bound and a ratio below 1 is natural. Without L1 (no credentials, credentials for another account that cannot see the nodes, …) L3 is skipped so that another account's ratio is never shown.
+- Without `--prom-selector`, the Prometheus queries are not scoped to a cluster label. In a Prometheus that holds several clusters (Thanos, AMP, …) the same `namespace/pod` names can mix with other clusters' values. crossaz warns and drops L2 only when **none** of this cluster's pods are in the result, so a partial mix is not caught. Name this cluster with `--prom-selector 'cluster="…"'`.
+- Response bytes are attributed to the calling service as received bytes.
+- With VPC CNI prefix delegation, the AZ of an endpoint IP without a zone may not be found through the ENI lookup (the pod IP lies inside a delegated prefix rather than being a separate ENI IP, so the `addresses.private-ip-address` filter does not match). Endpoints whose EndpointSlice has a zone (most of them) are unaffected. ENI lookups are limited to the cluster VPC, and an IP for which ENIs report different AZs is left with an unknown AZ.
+
+---
+
+## Development
 
 ```sh
 go test -race ./...
-go test ./internal/scan -update                          # 골든 파일(testdata/golden) 갱신
-crossaz scan --dump-fixture > testdata/fixtures/x.json   # 익명화된 스냅샷
-crossaz scan --fixture testdata/fixtures/x.json          # 클러스터 없이 재현
+go test ./internal/scan -update                          # refresh golden files (testdata/golden)
+crossaz scan --dump-fixture > testdata/fixtures/x.json   # anonymized snapshot
+crossaz scan --fixture testdata/fixtures/x.json          # reproduce without a cluster
 ```
 
-`--dump-fixture`는 IP·노드 이름·인스턴스 ID·VPC/서브넷 ID·LB와 타겟그룹 이름/DNS를 sha256 기반으로 결정적으로 치환합니다(조인 보존, 사설/공인 IPv4·IPv6 구분 유지). 판정에 쓰지 않는 annotation은 버리고(LB/TG 속성 annotation은 cross-zone 값만 남김), 경고는 치환한 값을 바꾼 뒤 `<레이어>: <대상>: <redacted>`까지만 남겨 AWS/Kubernetes/HTTP 에러 원문(계정 ID, principal ARN, 이메일, 홈 경로 등)을 지웁니다. static pod의 mirror pod(owner가 Node)는 이름 끝의 노드 이름과 owner 이름도 같은 값으로 치환합니다. **클러스터 이름, 네임스페이스·서비스·pod·Ingress·owner 이름(그 외), RDS/ElastiCache/MSK 식별자, Cost Explorer `actualUsd`는 그대로 남으므로** 커밋 전에 확인하세요.
+`--dump-fixture` replaces IPs, node names, instance IDs, VPC/subnet IDs, LB and target group names/DNS, and account IDs deterministically using sha256 (joins are preserved, as is the private/public IPv4/IPv6 distinction). Annotations not used for verdicts are dropped (LB/TG attribute annotations keep only the cross-zone value). Warnings have the replaced values substituted and are cut to `<layer>: <target>: <redacted>`, which removes raw AWS/Kubernetes/HTTP error text (account IDs, principal ARNs, emails, home paths, …). For static-pod mirror pods (owner is a Node), the node name at the end of the pod name and the owner name get the same replacement. **Cluster names, namespace/service/pod/Ingress/owner names (otherwise), RDS/ElastiCache/MSK identifiers, and Cost Explorer bill lines (amounts, usage types, operations) are kept as is**, so review a fixture before committing it.
 
-실제 클러스터 검증은 [`hack/e2e`](hack/e2e/README.md)에 있습니다. kind(3 AZ 라벨, 노드 6개)에 시나리오를 띄워 L0 판정, kube-proxy가 실제로 AZ를 넘기는 비율, Prometheus(cAdvisor) 볼륨 추정을 확인합니다(`hack/e2e/run.sh`, 약 10분, AWS 불필요).
+Real-cluster verification lives in [`hack/e2e`](hack/e2e/README.md). It brings up scenarios on kind (3 AZ labels, 6 nodes) and checks the L0 verdicts, the share of traffic kube-proxy actually sends across AZs, and the Prometheus (cAdvisor) volume estimate (`hack/e2e/run.sh`, about 10 minutes, no AWS needed).
 
-설계와 패키지 계약: [`docs/design.md`](docs/design.md). 과금 규칙 근거: [`docs/billing-rules.md`](docs/billing-rules.md).
+Design and package contracts: [`docs/design.md`](docs/design.md). Billing rule sources: [`docs/billing-rules.md`](docs/billing-rules.md). Both are in Korean.
 
-### 릴리스
+### Releases
 
-`v*` 태그를 푸시하면 [`.github/workflows/release.yml`](.github/workflows/release.yml)이 `go vet`·`go test -race`를 통과시킨 뒤 GoReleaser로 linux/darwin/windows × amd64/arm64 바이너리, `checksums.txt`, GitHub Release를 만듭니다.
+Pushing a `v*` tag makes [`.github/workflows/release.yml`](.github/workflows/release.yml) run `go vet` and `go test -race`, then GoReleaser builds linux/darwin/windows × amd64/arm64 binaries, `checksums.txt` and a GitHub Release.
 
 ```sh
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-| 배포 채널 | 준비물 | 없으면 |
+| Channel | Needs | Without it |
 |---|---|---|
-| GitHub Release | 없음 (기본 `GITHUB_TOKEN`) | — |
-| Homebrew cask | `leegun2000/homebrew-tap` 저장소 + 그 저장소에 쓰기 권한이 있는 토큰을 시크릿 `HOMEBREW_TAP_GITHUB_TOKEN`으로 등록 | cask 푸시만 건너뜀 |
-| krew | 첫 버전은 [krew-index](https://github.com/kubernetes-sigs/krew-index)에 수동 PR로 등록, 이후 저장소 변수 `KREW_RELEASE=true` | krew 단계 건너뜀 |
+| GitHub Release | nothing (the default `GITHUB_TOKEN`) | — |
+| Homebrew cask | a `leegun2000/homebrew-tap` repository, plus a token with write access to it stored as the secret `HOMEBREW_TAP_GITHUB_TOKEN` | only the cask push is skipped |
+| krew | submit the first version to [krew-index](https://github.com/kubernetes-sigs/krew-index) by hand, then set the repository variable `KREW_RELEASE=true` | the krew step is skipped |
 
-저장소가 private인 동안에는 릴리스 에셋이 인증 없이 받아지지 않으므로 Homebrew·krew 설치는 public 전환 후에 동작합니다. 로컬 확인: `goreleaser release --snapshot --clean`.
+While the repository is private, release assets cannot be downloaded without authentication, so Homebrew and krew installs work only after it goes public. To check locally: `goreleaser release --snapshot --clean`.
 
-## 라이선스
+## License
 
 [MIT](LICENSE)

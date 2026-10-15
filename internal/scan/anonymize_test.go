@@ -22,6 +22,7 @@ const (
 	origLBName   = "k8s-edge-gateway-9f60025a00"
 	origLBDNS    = "k8s-edge-gateway-9f60025a00-1a2b3c4d5e6f7a8b.elb.ap-northeast-2.amazonaws.com"
 	origTGName   = "k8s-edge-gateway-tg-77aa"
+	origAccount  = "123456789012"
 )
 
 func sensitiveSnapshot() model.Snapshot {
@@ -51,9 +52,10 @@ func sensitiveSnapshot() model.Snapshot {
 		Ingresses:      []model.Ingress{{Namespace: "edge", Name: "web", Services: []string{"gateway"}, LBHostnames: []string{origLBDNS}}},
 		IngressClasses: []model.IngressClass{{Name: "alb", Controller: "ingress.k8s.aws/alb"}},
 		AWS: &model.AWSInventory{
-			VPCIDs:  []string{origVPC},
-			Subnets: map[string]model.Subnet{origSubnet: {AZ: "ap-northeast-2a", VPCID: origVPC}},
-			IPZones: map[string]string{origAPIIP: "ap-northeast-2c"},
+			VPCIDs:   []string{origVPC},
+			Accounts: []string{origAccount},
+			Subnets:  map[string]model.Subnet{origSubnet: {AZ: "ap-northeast-2a", VPCID: origVPC}},
+			IPZones:  map[string]string{origAPIIP: "ap-northeast-2c"},
 			LoadBalancers: []model.LoadBalancer{{
 				Name: origLBName, DNSName: origLBDNS, Type: "network", VPCID: origVPC, Zones: []string{"ap-northeast-2a"},
 				CrossZone: &crossZone, TargetGroups: []model.TargetGroup{{Name: origTGName, TargetType: "ip", CrossZone: "true"}},
@@ -63,8 +65,8 @@ func sensitiveSnapshot() model.Snapshot {
 			MSK:    []model.MSKCluster{{Name: "events", BrokerZones: []string{"ap-northeast-2c"}, VPCID: origVPC}},
 		},
 		Volume:   &model.VolumeData{Window: "7d", RecvBytesPerS: map[string]float64{"edge/gateway-0": 12}},
-		Cost:     &model.CostData{Month: "2026-08", ActualUSD: 10},
-		Warnings: []string{"L1: 엔드포인트 IP의 AZ: DescribeNetworkInterfaces " + origAPIIP + " in " + origVPC + ": throttled"},
+		Bill:     &model.Bill{Lines: []model.BillLine{{Account: origAccount, UsageType: "APN2-DataTransfer-Regional-Bytes", Operation: "InterZone-In", Family: model.FamilyInterZone, USD: 10}}},
+		Warnings: []string{"L1: endpoint IP AZs: DescribeNetworkInterfaces " + origAPIIP + " in " + origVPC + ": throttled"},
 	}
 }
 
@@ -92,6 +94,7 @@ func TestAnonymizePreservesJoins(t *testing.T) {
 		{"LB DNS equals ingress hostname", got.AWS.LoadBalancers[0].DNSName == got.Ingresses[0].LBHostnames[0], got.Ingresses[0].LBHostnames, got.Ingresses[0].LBHostnames[0], origLBDNS},
 		{"VPC IDs agree across inventory", got.AWS.VPCIDs[0] == got.AWS.LoadBalancers[0].VPCID && got.AWS.VPCIDs[0] == got.AWS.RDS[0].VPCID &&
 			got.AWS.VPCIDs[0] == got.AWS.Caches[0].VPCID && got.AWS.VPCIDs[0] == got.AWS.MSK[0].VPCID, got.AWS.VPCIDs, got.AWS.VPCIDs[0], origVPC},
+		{"bill account equals inventory account", got.Bill.Lines[0].Account == got.AWS.Accounts[0], got.Bill.Lines, got.AWS.Accounts[0], origAccount},
 		{"subnet VPC is the replaced VPC", got.AWS.Subnets[firstKey(got.AWS.Subnets)].VPCID == got.AWS.VPCIDs[0], got.AWS.Subnets, firstKey(got.AWS.Subnets), origSubnet},
 	}
 	for _, c := range checks {
@@ -126,7 +129,7 @@ func TestAnonymizeLeavesNoOriginalIdentifier(t *testing.T) {
 
 	// Assert
 	out := strings.ToLower(string(data))
-	for _, orig := range []string{origNode, origPodIP, origAPIIP, "172.20.9.9", origInstance, origVPC, origSubnet, origLBName, origLBDNS, origTGName, "prod-logs", "last-applied", "deletion_protection"} {
+	for _, orig := range []string{origNode, origPodIP, origAPIIP, "172.20.9.9", origInstance, origVPC, origSubnet, origLBName, origLBDNS, origTGName, origAccount, "prod-logs", "last-applied", "deletion_protection"} {
 		if strings.Contains(out, strings.ToLower(orig)) {
 			t.Errorf("anonymized JSON still contains %q", orig)
 		}
@@ -316,30 +319,30 @@ func TestAnonymizeRedactsWarningErrorText(t *testing.T) {
 	}{
 		{
 			name:    "layer and subject are kept and AWS error text quoting replaced values is redacted",
-			warning: "L1: 엔드포인트 IP의 AZ: DescribeNetworkInterfaces " + origAPIIP + " in " + origVPC + ": throttled",
-			want:    func(model.Snapshot) string { return "L1: 엔드포인트 IP의 AZ: <redacted>" },
+			warning: "L1: endpoint IP AZs: DescribeNetworkInterfaces " + origAPIIP + " in " + origVPC + ": throttled",
+			want:    func(model.Snapshot) string { return "L1: endpoint IP AZs: <redacted>" },
 		},
 		{
 			name:    "access denied with account ID, principal ARN, email and LB name is redacted",
-			warning: "L1: 로드밸런서: load balancer k8s-payments-secretapi-0123abcd: operation error: AccessDenied: User: " + principal + " is not authorized",
-			want:    func(model.Snapshot) string { return "L1: 로드밸런서: <redacted>" },
+			warning: "L1: load balancers: load balancer k8s-payments-secretapi-0123abcd: operation error: AccessDenied: User: " + principal + " is not authorized",
+			want:    func(model.Snapshot) string { return "L1: load balancers: <redacted>" },
 		},
 		{
 			name:    "credential error with a home directory path is redacted",
-			warning: "L1: AWS 자격증명을 찾지 못해 L0만 실행: failed to read cached SSO token file, open " + homePath + ": no such file or directory",
-			want:    func(model.Snapshot) string { return "L1: AWS 자격증명을 찾지 못해 L0만 실행: <redacted>" },
+			warning: "L1: no AWS credentials found; running L0 only: failed to read cached SSO token file, open " + homePath + ": no such file or directory",
+			want:    func(model.Snapshot) string { return "L1: no AWS credentials found; running L0 only: <redacted>" },
 		},
 		{
 			name:    "two-segment warning is kept with replaced values scrubbed",
-			warning: "L1: 노드 " + origInstance + " 인스턴스 ID 없음",
+			warning: "L1: node " + origInstance + " has no instance ID",
 			want: func(anon model.Snapshot) string {
-				return "L1: 노드 " + anon.Nodes[0].InstanceID + " 인스턴스 ID 없음"
+				return "L1: node " + anon.Nodes[0].InstanceID + " has no instance ID"
 			},
 		},
 		{
 			name:    "warning without separator is kept",
-			warning: "--fixture 사용 중",
-			want:    func(model.Snapshot) string { return "--fixture 사용 중" },
+			warning: "--fixture in use",
+			want:    func(model.Snapshot) string { return "--fixture in use" },
 		},
 	}
 	for _, tt := range tests {

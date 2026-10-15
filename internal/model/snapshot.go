@@ -21,8 +21,8 @@ type Snapshot struct {
 	// L2 — Prometheus. nil = layer not available. Key "namespace/pod".
 	Volume *VolumeData `json:"volume,omitempty"`
 
-	// L3 — Cost Explorer. nil = not requested/available.
-	Cost *CostData `json:"cost,omitempty"`
+	// L3 — Cost Explorer daily bill. nil = not requested/available; Bill.Unknown = asked, but CE could not tell.
+	Bill *Bill `json:"bill,omitempty"`
 
 	// Non-fatal collection problems (missing permissions, partial data). Shown to the user.
 	Warnings []string `json:"warnings,omitempty"`
@@ -91,9 +91,10 @@ type IngressClass struct {
 
 // AWSInventory is the L1 read-only AWS view of the cluster's region.
 type AWSInventory struct {
-	VPCIDs        []string          `json:"vpcIds"`            // VPCs of the cluster's node instances
-	Subnets       map[string]Subnet `json:"subnets"`           // subnet ID -> subnet
-	IPZones       map[string]string `json:"ipZones,omitempty"` // private IP -> AZ, only for endpoint IPs lacking a zone
+	VPCIDs        []string          `json:"vpcIds"`             // VPCs of the cluster's node instances
+	Accounts      []string          `json:"accounts,omitempty"` // accounts owning the node instances (reservation OwnerId)
+	Subnets       map[string]Subnet `json:"subnets"`            // subnet ID -> subnet
+	IPZones       map[string]string `json:"ipZones,omitempty"`  // private IP -> AZ, only for endpoint IPs lacking a zone
 	LoadBalancers []LoadBalancer    `json:"loadBalancers"`
 	RDS           []RDSInstance     `json:"rds"`
 	Caches        []CacheCluster    `json:"caches"`
@@ -156,11 +157,4 @@ type MSKCluster struct {
 type VolumeData struct {
 	Window        string             `json:"window"`        // PromQL range used, e.g. "7d"
 	RecvBytesPerS map[string]float64 `json:"recvBytesPerS"` // "namespace/pod" -> avg receive bytes/s
-}
-
-// CostData is L3 actual cost.
-type CostData struct {
-	Month     string  `json:"month"` // YYYY-MM
-	ActualUSD float64 `json:"actualUsd"`
-	UsageType string  `json:"usageType"`
 }

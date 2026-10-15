@@ -49,7 +49,7 @@ var (
 	}
 )
 
-// Anonymize returns a copy of s with IPs, node names, instance/VPC/subnet IDs and load balancer
+// Anonymize returns a copy of s with IPs, node names, account and instance/VPC/subnet IDs and load balancer
 // (and target group) names and DNS names replaced by sha256-derived values. Within one snapshot the same
 // input always maps to the same output, so joins survive: endpoint IP = pod IP = IPZones key,
 // LB DNS name = Service/Ingress hostname, node name = pod/endpoint NodeName. Namespace, service and pod
@@ -79,9 +79,14 @@ func Anonymize(s model.Snapshot) model.Snapshot {
 		})
 		out.Volume = &v
 	}
-	if s.Cost != nil {
-		c := *s.Cost
-		out.Cost = &c
+	if s.Bill != nil {
+		b := *s.Bill
+		b.Lines = mapSlice(s.Bill.Lines, func(l model.BillLine) model.BillLine {
+			l.Account = a.account(l.Account)
+			return l
+		})
+		b.Warnings = mapSlice(s.Bill.Warnings, redactErrorText)
+		out.Bill = &b
 	}
 	out.Warnings = mapSlice(a.scrub(s.Warnings), redactErrorText)
 	return out
@@ -156,6 +161,10 @@ func (a *anonymizer) ip(original string) string {
 
 func (a *anonymizer) nodeName(v string) string {
 	return a.value("node", v, hexPrefix("node-", nameHexLen))
+}
+
+func (a *anonymizer) account(v string) string {
+	return a.value("account", v, hexPrefix("acct-", nameHexLen))
 }
 
 func (a *anonymizer) vpcID(v string) string {
@@ -241,6 +250,7 @@ func (a *anonymizer) ingress(ing model.Ingress) model.Ingress {
 func (a *anonymizer) inventory(inv model.AWSInventory) model.AWSInventory {
 	out := inv
 	out.VPCIDs = mapSlice(inv.VPCIDs, a.vpcID)
+	out.Accounts = mapSlice(inv.Accounts, a.account)
 	out.Subnets = mapSorted(inv.Subnets, func(id string, sn model.Subnet) (string, model.Subnet) {
 		return a.value("subnet", id, hexPrefix("subnet-", awsIDHexLen)), model.Subnet{AZ: sn.AZ, VPCID: a.vpcID(sn.VPCID)}
 	})

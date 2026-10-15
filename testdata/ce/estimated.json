@@ -1,0 +1,101 @@
+[
+  {
+    "GroupDefinitions": [
+      {
+        "Type": "DIMENSION",
+        "Key": "USAGE_TYPE"
+      },
+      {
+        "Type": "DIMENSION",
+        "Key": "OPERATION"
+      }
+    ],
+    "ResultsByTime": [
+      {
+        "TimePeriod": {
+          "Start": "2026-09-20",
+          "End": "2026-09-21"
+        },
+        "Total": {},
+        "Groups": [
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-In"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "1.5",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "150",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-Out"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "1.5",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "150",
+                "Unit": "GB"
+              }
+            }
+          }
+        ],
+        "Estimated": false
+      },
+      {
+        "TimePeriod": {
+          "Start": "2026-09-21",
+          "End": "2026-09-22"
+        },
+        "Total": {},
+        "Groups": [
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-In"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.8",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "80",
+                "Unit": "GB"
+              }
+            }
+          },
+          {
+            "Keys": [
+              "APN2-DataTransfer-Regional-Bytes",
+              "InterZone-Out"
+            ],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "0.7",
+                "Unit": "USD"
+              },
+              "UsageQuantity": {
+                "Amount": "70",
+                "Unit": "GB"
+              }
+            }
+          }
+        ],
+        "Estimated": true
+      }
+    ],
+    "DimensionValueAttributes": []
+  }
+]

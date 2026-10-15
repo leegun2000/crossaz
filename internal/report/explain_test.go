@@ -68,10 +68,10 @@ func TestExplainUnknownCostAndRuleFallbacks(t *testing.T) {
 	// Arrange
 	client := uncertainPath()
 	client.Facts = model.Facts{Traffic: "client", Scheme: "internal", Evidence: model.EvidenceAWS}
-	client.ConfidenceNote = "클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음"
+	client.ConfidenceNote = "target outside the cluster: traffic and volume unknown"
 	replication := uncertainPath()
 	replication.RuleID = "rds-multiaz-replication"
-	replication.Billable = false
+	replication.Billable = model.TriFalse
 	replication.Confidence = model.High
 	replication.Facts = model.Facts{Traffic: "replication"}
 	paths := []model.Path{client, replication}
@@ -83,12 +83,13 @@ func TestExplainUnknownCostAndRuleFallbacks(t *testing.T) {
 	want := []string{
 		"  facts:       kube_proxy_hints=false topology_hints=false hints_configured=false zone_local=false direct_ingress_backend=false scheme=internal same_vpc=false private_ip=false traffic=client\n",
 		"  source:      https://rule.example/rds  (unverified)\n",
-		"  estimate:    클러스터 외부 대상: 통신 여부와 볼륨을 알 수 없음\n",
+		"  estimate:    target outside the cluster: traffic and volume unknown\n",
 		"  confidence:  low\n",
 		"\nrds/orders-db  (rds)\n",
 		"  source:      —  (verified 2026-09-01)\n",
 		"  estimate:    —\n",
 		"  confidence:  high\n",
+		"  rule:        rds-multiaz-replication  (billable: false, rule confidence: —)\n",
 	}
 	for _, w := range want {
 		if !strings.Contains(out, w) {
@@ -127,5 +128,19 @@ func TestExplainReturnsWriteError(t *testing.T) {
 	// Assert
 	if !errors.Is(err, errWrite) {
 		t.Errorf("Explain() error = %v, want wrapped %v", err, errWrite)
+	}
+}
+
+func TestExplainPrintsUnknownBillable(t *testing.T) {
+	// Arrange
+	p := unknownPath("ns/u", nil)
+	p.RuleConfidence = model.Low
+
+	// Act
+	out := renderExplain(t, "ns/u", []model.Path{p})
+
+	// Assert
+	if want := "  rule:        zone-unknown  (billable: unknown, rule confidence: low)\n"; !strings.Contains(out, want) {
+		t.Errorf("missing %q in:\n%s", want, out)
 	}
 }
